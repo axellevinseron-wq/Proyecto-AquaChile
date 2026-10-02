@@ -1,4 +1,5 @@
 import AppNavbar from "./components/AppNavbar";
+import SolicitudesPanel from "./components/SolicitudesPanel";
 import DashboardPage from "./pages/DashboardPage";
 
 function App() {
