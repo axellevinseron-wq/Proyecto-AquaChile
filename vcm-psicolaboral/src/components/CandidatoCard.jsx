@@ -6,7 +6,7 @@ function CandidatoCard({nombre,cargo,estado}){
             
           <h3 className="h5">{nombre}</h3>
 
-          <p className="text-seconday mb-2">{cargo}</p>
+          <p className="text-secondary mb-2">{cargo}</p>
 
           <span className="badge text-bg-secondary">{estado}</span>
         </div>
