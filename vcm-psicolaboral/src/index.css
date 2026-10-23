@@ -1,58 +1,44 @@
-*{
+:root {
+  font-family: Arial, sans-serif;
+  color: #212529;
+  background: #f5f6f8;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
   box-sizing: border-box;
 }
-body{
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 5rem;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
   margin: 0;
-  font-family: Arial, sans-serif;
   background: #f5f6f8;
   color: #212529;
+  font-family: Arial, sans-serif;
 }
 
-.container{
-  max-width: 1000px;
-  margin: auto;
-  padding: 40px 20px;
-
+.dashboard-container {
+  max-width: 1200px;
 }
 
-header{
-  margin-bottom: 30px;
+#candidatos,
+#solicitudes {
+  scroll-margin-top: 5.5rem;
 }
 
-.tag{
-  font-size: 14px;
-  font-weight: bold;
-
-}
-h1{
-  margin-bottom: 10px;
+.status-select {
+  min-width: 130px;
 }
 
-.indicadores{
-  display: flex;
-  gap: 16px;
-}
-
-.indicadores article{
-  flex: 1;
-  padding: 20px;
-  background-color: white;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-}
-
-.indicadores strong{
-  display: block;
-  font-size: 30px;
-}
-
-.indicadores span{
-  color: #555;
-}
-
-.flujo{
-  margin-top: 30px;
-  padding: 20px;
-  background-color: white;
-  border-radius: 8px;
+@media (max-width: 575.98px) {
+  .status-select {
+    min-width: 112px;
+  }
 }
