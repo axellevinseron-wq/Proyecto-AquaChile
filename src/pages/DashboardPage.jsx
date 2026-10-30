@@ -82,7 +82,7 @@ const solicitudesIniciales = [
   },
 ];
 
-function DashboardPage({ esAdmin, usuario }) {
+function DashboardPage({ esAdmin, usuario, onCambiarFoto }) {
   // La sección que se muestra viene de la URL (/inicio, /candidatos, ...)
   const { vista } = useParams();
 
@@ -289,7 +289,7 @@ function DashboardPage({ esAdmin, usuario }) {
         />
       )}
       {vista === "perfil" && (
-        <PerfilPanel usuario={usuario} />
+        <PerfilPanel usuario={usuario} onCambiarFoto={onCambiarFoto} />
       )}
 
 

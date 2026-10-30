@@ -1033,3 +1033,35 @@ a.sidebar-link {
   flex-shrink: 0;
   margin-bottom: 0;
 }
+
+
+/* Foto de perfil */
+.perfil-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 110px;
+  height: 110px;
+  margin-top: -55px;
+  position: relative;
+  overflow: hidden;
+  border-radius: 50%;
+  border: 4px solid #fff;
+  background: var(--degradado-83);
+  color: #fff;
+}
+
+.user-panel__avatar {
+  overflow: hidden;
+}
+
+.avatar-foto {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.perfil-portada {
+  height: 90px;
+  background: var(--degradado-83);
+}

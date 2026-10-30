@@ -60,9 +60,17 @@ export function iniciarSesion(usuario, clave) {
   { usuario: encontrado.usuario,
     rol: encontrado.rol,
     nombre: encontrado.nombre ?? encontrado.usuario,
-    correo: encontrado.correo ?? "Sin correo registrado"
-  
+    correo: encontrado.correo ?? "Sin correo registrado",
+    foto: encontrado.foto ?? null,
   } : null;
+}
+
+// Guarda (o quita, si foto es null) la foto de perfil del usuario.
+export function guardarFotoUsuario(usuario, foto) {
+  const usuarios = obtenerUsuarios().map((u) =>
+    u.usuario === usuario ? { ...u, foto } : u,
+  );
+  guardar(CLAVE_USUARIOS, usuarios);
 }
 
 export function leerSolicitudesCuenta() {

@@ -8,7 +8,7 @@ const ENLACES = [
   { id: "solicitudes", texto: "Solicitudes" },
 ];
 
-function Sidebar({ usuario, onNavegar, onCerrarSesion }) {
+function Sidebar({ usuario, foto, onNavegar, onCerrarSesion }) {
   const [panelAbierto, setPanelAbierto] = useState(true);
 
   return (
@@ -21,7 +21,11 @@ function Sidebar({ usuario, onNavegar, onCerrarSesion }) {
         title="Ver perfil"
       >
         <span className="user-panel__avatar" aria-hidden="true">
-          <Icon nombre="user" size={26} />
+          {foto ? (
+            <img src={foto} alt="" className="avatar-foto" />
+          ) : (
+            <Icon nombre="user" size={26} />
+          )}
         </span>
 
         <div>

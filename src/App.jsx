@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { guardarFotoUsuario } from "./auth";
 import { Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import OpcionesPanel from "./components/OpcionesPanel";
 import { FONDOS } from "./fondos";
@@ -25,6 +26,11 @@ function App() {
     }
   }
 
+  function cambiarFoto(foto) {
+    guardarFotoUsuario(usuario.usuario, foto);
+    setUsuario({ ...usuario, foto });
+  }
+
   if (!usuario) {
     return <LoginPage onLogin={setUsuario} />;
   }
@@ -47,6 +53,7 @@ function App() {
       />
       <Sidebar
         usuario={usuario.usuario}
+        foto={usuario.foto}
         onNavegar={cerrarEnMovil}
         onCerrarSesion={() => {
           setUsuario(null);
@@ -75,6 +82,7 @@ function App() {
               <DashboardPage 
               esAdmin={usuario.rol === "Administrador"} 
               usuario={usuario}
+              onCambiarFoto={cambiarFoto}
               />} />
         </Routes>
       </div>

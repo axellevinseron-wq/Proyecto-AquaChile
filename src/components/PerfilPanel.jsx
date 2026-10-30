@@ -1,4 +1,4 @@
-import { NavLink } from "react-router-dom";
+import { useRef, useState } from "react";
 import Icon from "./Icon";
 
 const PERMISOS_POR_ROL = {
@@ -40,9 +40,55 @@ function claseRol(rol) {
   }
 }
 
-function PerfilPanel({ usuario }) {
+const TAMANO_FOTO = 256; // la foto se reduce a 256x256 para que quepa en localStorage
+
+// Lee la imagen, la recorta cuadrada y la reduce. Devuelve un texto (data URL).
+function procesarImagen(archivo) {
+  return new Promise((resolve, reject) => {
+    const lector = new FileReader();
+    lector.onerror = () => reject(new Error("No se pudo leer el archivo."));
+    lector.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("El archivo no es una imagen válida."));
+      img.onload = () => {
+        const lado = Math.min(img.width, img.height);
+        const x = (img.width - lado) / 2;
+        const y = (img.height - lado) / 2;
+        const canvas = document.createElement("canvas");
+        canvas.width = TAMANO_FOTO;
+        canvas.height = TAMANO_FOTO;
+        canvas.getContext("2d").drawImage(img, x, y, lado, lado, 0, 0, TAMANO_FOTO, TAMANO_FOTO);
+        resolve(canvas.toDataURL("image/jpeg", 0.85));
+      };
+      img.src = lector.result;
+    };
+    lector.readAsDataURL(archivo);
+  });
+}
+
+function PerfilPanel({ usuario, onCambiarFoto }) {
+  const inputRef = useRef(null);
+  const [errorFoto, setErrorFoto] = useState("");
+
   if (!usuario) {
     return null;
+  }
+
+  async function elegirFoto(evento) {
+    const archivo = evento.target.files[0];
+    evento.target.value = ""; // permite elegir la misma foto otra vez
+    if (!archivo) return;
+
+    if (!archivo.type.startsWith("image/")) {
+      setErrorFoto("Elige un archivo de imagen (JPG, PNG, etc.).");
+      return;
+    }
+    try {
+      onCambiarFoto(await procesarImagen(archivo));
+      setErrorFoto("");
+    } catch (error) {
+      setErrorFoto(error.message);
+    }
   }
 
   const permisos = PERMISOS_POR_ROL[usuario.rol] ?? [
@@ -77,8 +123,39 @@ function PerfilPanel({ usuario }) {
             <div className="card-body text-center">
 
               <div className="perfil-avatar mx-auto">
-                <Icon nombre="user" size={42} />
+                {usuario.foto ? (
+                  <img src={usuario.foto} alt="Foto de perfil" className="avatar-foto" />
+                ) : (
+                  <Icon nombre="user" size={42} />
+                )}
               </div>
+
+              <input
+                ref={inputRef}
+                type="file"
+                accept="image/*"
+                className="d-none"
+                onChange={elegirFoto}
+              />
+              <div className="d-flex justify-content-center gap-2 mt-3">
+                <button
+                  type="button"
+                  className="btn btn-sm btn-primary"
+                  onClick={() => inputRef.current.click()}
+                >
+                  {usuario.foto ? "Cambiar foto" : "Subir foto"}
+                </button>
+                {usuario.foto && (
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline-secondary"
+                    onClick={() => onCambiarFoto(null)}
+                  >
+                    Quitar
+                  </button>
+                )}
+              </div>
+              {errorFoto && <p className="text-danger small mt-2 mb-0">{errorFoto}</p>}
 
               <h2 className="h4 mt-3 mb-1">
                 {usuario.nombre}
