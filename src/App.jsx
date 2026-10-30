@@ -69,7 +69,13 @@ function App() {
               </main>
             }
           />
-          <Route path="/:vista" element={<DashboardPage esAdmin={usuario.rol === "Administrador"} />} />
+          <Route 
+            path="/:vista" 
+            element={
+              <DashboardPage 
+              esAdmin={usuario.rol === "Administrador"} 
+              usuario={usuario}
+              />} />
         </Routes>
       </div>
 

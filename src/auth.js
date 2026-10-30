@@ -3,9 +3,9 @@ const CLAVE_SOLICITUDES_CUENTA = "vcm-solicitudes-cuenta";
 
 
 const USUARIOS_INICIALES = [
-  { usuario: "admin", clave: "admin123", rol: "Administrador" },
-  { usuario: "jefe.rrhh", clave: "rrhh123", rol: "Administrador" },
-  { usuario: "psicologo", clave: "psico123", rol: "Usuario" },
+  { usuario: "admin", clave: "admin123", rol: "Administrador",nombre:"Administrador AquaChile",correo:"admin@aquachile.test" },
+  { usuario: "jefe.rrhh", clave: "rrhh123", rol: "Analista de reclutamiento",nombre:"Carlos Hernandez",correo:"carlos.hernand@aquachile.test" },
+  { usuario: "psicologo", clave: "psico123", rol: "Profesional evaluador",nombre:"Laura Perez",correo:"laura.perez@aquachile.test" },
 ];
 
 
@@ -56,7 +56,13 @@ export function iniciarSesion(usuario, clave) {
   const encontrado = obtenerUsuarios().find(
     (u) => u.usuario.toLowerCase() === nombre && u.clave === clave,
   );
-  return encontrado ? { usuario: encontrado.usuario, rol: encontrado.rol } : null;
+  return encontrado ? 
+  { usuario: encontrado.usuario,
+    rol: encontrado.rol,
+    nombre: encontrado.nombre ?? encontrado.usuario,
+    correo: encontrado.correo ?? "Sin correo registrado"
+  
+  } : null;
 }
 
 export function leerSolicitudesCuenta() {
