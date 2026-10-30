@@ -9,12 +9,14 @@ import GraficoDiasMes from "../components/GraficoDiasMes";
 import CandidatosPanel from "../components/CandidatosPanel";
 import UltimasSolicitudes from "../components/UltimasSolicitudes";
 import SolicitudesCuentaPanel from "../components/SolicitudesCuentaPanel";
+import PerfilPanel from "..//components/PerfilPanel";
+
 import { leerSolicitudesCuenta, resolverSolicitudCuenta } from "../auth";
 import { useAlmacenLocal } from "../useAlmacenLocal";
 import { hoyClave } from "../fechas";
 import { calcularIndicadores, cambiarEstadoSolicitud, existeCorreo } from "../logica";
 
-const VISTAS = ["inicio", "indicadores", "candidatos", "solicitudes"];
+const VISTAS = ["inicio", "indicadores", "candidatos", "solicitudes","perfil"];
 
 const candidatosIniciales = [
   {
@@ -80,7 +82,7 @@ const solicitudesIniciales = [
   },
 ];
 
-function DashboardPage({ esAdmin }) {
+function DashboardPage({ esAdmin, usuario }) {
   // La sección que se muestra viene de la URL (/inicio, /candidatos, ...)
   const { vista } = useParams();
 
@@ -286,6 +288,10 @@ function DashboardPage({ esAdmin }) {
           }
         />
       )}
+      {vista === "perfil" && (
+        <PerfilPanel usuario={usuario} />
+      )}
+
 
       <p className="small text-secondary mt-4 mb-0">
         Prototipo académico: los datos se guardan solo en este navegador (localStorage).

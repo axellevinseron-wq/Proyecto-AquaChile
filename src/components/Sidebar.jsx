@@ -13,17 +13,25 @@ function Sidebar({ usuario, onNavegar, onCerrarSesion }) {
 
   return (
     <aside id="menu-lateral" className="main-sidebar" aria-label="Menú lateral">
-      <div className="user-panel">
+      <NavLink
+
+        to="/perfil"
+        className="user-panel"
+        onClick={onNavegar}
+        title="Ver perfil"
+      >
         <span className="user-panel__avatar" aria-hidden="true">
           <Icon nombre="user" size={26} />
         </span>
+
         <div>
           <p className="user-panel__nombre">{usuario}</p>
+
           <p className="user-panel__estado">
             <span className="punto-online" aria-hidden="true" /> Online
           </p>
         </div>
-      </div>
+      </NavLink>
 
       <p className="sidebar-titulo">Navegación Principal</p>
 
