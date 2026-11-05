@@ -3,6 +3,7 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import express from "express";
+import { Resend } from "resend";
 import { crearAlmacen } from "./almacen.js";
 import { crearSesiones } from "./sesiones.js";
 import { crearAutenticacion, crearLimitador, demasiadosIntentos, manejarErrores, rutaNoEncontrada } from "./middleware.js";
@@ -51,6 +52,15 @@ export function crearApp({
   const { requiereSesion, requiereAdmin, requierePermiso } = crearAutenticacion({ almacen, sesiones });
   const datos = () => almacen.datos;
 
+  //Resend
+  const resend = process.env.RESEND_API_KEY
+    ? new Resend(process.env.RESEND_API_KEY)
+    :null;
+
+  const correoPrueba = process.env.CORREO_PRUEBA;
+
+
+
   const limiteLogin = crearLimitador({ max: 10, ventanaMs: 10 * MINUTOS });
   const limiteConsulta = crearLimitador({ max: 30, ventanaMs: 10 * MINUTOS });
   const limiteEnvio = crearLimitador({ max: 20, ventanaMs: 60 * MINUTOS });
@@ -61,6 +71,8 @@ export function crearApp({
     res.set("Referrer-Policy", "same-origin");
     next();
   });
+
+
   // Las fotos de perfil y banners viajan como imagen en base64, por eso el límite es más alto.
   app.use(express.json({ limit: "4mb" }));
 
@@ -152,7 +164,7 @@ export function crearApp({
   // ---------- Solicitudes de acceso ----------
 
   // Públicas: no hace falta iniciar sesión.
-  api.post("/accesos", (req, res) => {
+  api.post("/accesos", async(req, res) => {
     if (limiteEnvio.excedido(req.ip)) {
       return demasiadosIntentos(res);
     }
@@ -161,9 +173,59 @@ export function crearApp({
       return responder(res, resultado);
     }
     limiteEnvio.contar(req.ip);
+
     almacen.guardar();
+
+    //Enviar correo con resend
+    if(resend && correoPrueba){
+      const solicitud = resultado.solicitud
+
+      try{
+        const {error} = await resend.emails.send({
+          from:"AquaChile<onboarding@resend.dev>",
+          to:correoPrueba,
+          subject:`Nueva solicitud de acceso -${solicitud.nombre}  ${solicitud.apellido}`,
+          text:`
+          Se recibio una nueva solicitud de acceso al sistema AquaChile.
+          
+          Nombre:${solicitud.nombre}
+          Apellido:${solicitud.apellido}
+          RUT: ${solicitud.rut}
+          Teléfono: ${solicitud.telefono}
+          Correo: ${solicitud.correo}
+          Usuario solicitado: ${solicitud.usuario}
+
+          Motivo:
+          ${solicitud.motivo}
+
+          Codigo de seguimiento:
+          ${solicitud.codigo}
+
+          Estado:
+          ${solicitud.estado}
+          
+          `
+        });
+
+        if(error){
+          console.error(
+            "Error al enviar correo con Resend:",error.message
+          );
+        }else{
+          console.log(
+            "Correo de solicitud enviado correctamente."
+          );
+        }
+      } catch(error){
+        "No se pudo enviar el correo:", error.message
+      };
+    }
+
     return res.status(201).json({ solicitud: resultado.solicitud });
   });
+
+
+
 
   // Es POST (y no GET) para que el correo y el código no queden en la URL ni en los registros.
   api.post("/accesos/consulta", (req, res) => {
