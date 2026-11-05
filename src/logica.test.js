@@ -6,6 +6,8 @@ import {
   existeCorreo,
   filtrarCandidatos,
   filtrarSolicitudes,
+  rutValido,
+  telefonoValido,
   validarCandidato,
   validarSolicitud,
 } from "./logica";
@@ -108,5 +110,21 @@ describe("calcularIndicadores", () => {
   });
   it("devuelve ceros si no hay datos", () => {
     expect(calcularIndicadores([], []).map((i) => i.valor)).toEqual([0, 0, 0, 0]);
+  });
+});
+describe("rutValido y telefonoValido", () => {
+  it("acepta un RUT con dígito verificador correcto", () => {
+    expect(rutValido("12.345.678-5")).toBe(true);
+    expect(rutValido("12345678-5")).toBe(true);
+  });
+
+  it("rechaza un RUT con dígito incorrecto o mal formado", () => {
+    expect(rutValido("12.345.678-9")).toBe(false);
+    expect(rutValido("abc")).toBe(false);
+  });
+
+  it("valida el teléfono", () => {
+    expect(telefonoValido("+56 9 1234 5678")).toBe(true);
+    expect(telefonoValido("123")).toBe(false);
   });
 });

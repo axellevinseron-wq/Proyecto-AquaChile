@@ -5,16 +5,21 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "server": "node --watch server/index.js",
+    "dev:all": "concurrently -k -n web,api -c cyan,green \"npm:dev\" \"npm:server\"",
+    "start": "node server/index.js",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest",
     "test:run": "vitest run",
-    "coverage": "vitest run --coverage"
+    "coverage": "vitest run --coverage",
+    "test:server": "node --test server/test/dominio.test.js server/test/api.test.js"
   },
   "dependencies": {
     "@popperjs/core": "^2.11.8",
     "bootstrap": "^5.3.8",
+    "express": "^5.1.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router-dom": "^7.18.5"
@@ -28,6 +33,7 @@
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^6.1.1",
     "@vitest/coverage-v8": "^5.0.5",
+    "concurrently": "^9.1.0",
     "eslint": "^10.10.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.6",
@@ -35,5 +41,8 @@
     "jsdom": "^30.1.3",
     "vite": "^8.3.0",
     "vitest": "^5.0.5"
+  },
+  "engines": {
+    "node": ">=20.19"
   }
 }

@@ -1,116 +1,70 @@
+# AquaChile – Evaluaciones psicolaborales
 
-# Proyecto AquaChile
-
-Avance funcional (Evaluación Parcial 2) del proyecto de Vinculación con el Medio desarrollado junto a **AquaChile**: una aplicación web para gestionar **evaluaciones psicolaborales**.
-
-> Esta etapa es solo frontend. No hay backend ni base de datos: los datos son **ficticios** y se guardan en el navegador (`localStorage`).
-
-## Problemática
-
-El proceso de evaluaciones psicolaborales necesita un lugar único para:
-
-- registrar a los candidatos,
-- crear solicitudes de evaluación para cada candidato,
-- seguir el avance de cada solicitud (Pendiente → En proceso → Finalizada),
-- ver indicadores del proceso para tomar decisiones.
-
-La aplicación resuelve ese flujo completo con datos simulados.
-
-## Funcionalidades
-
-| Módulo | Qué permite |
-|---|---|
-| **Login y registro** | Iniciar sesión, "recordarme" y pedir una cuenta nueva. Los administradores aprueban o cancelan las solicitudes de cuenta. |
-| **Inicio** | Tarjetas con indicadores, calendario de solicitudes y estadística del día elegido. |
-| **Indicadores** | Gráficos por estado, por día del mes y últimas solicitudes. |
-| **Candidatos** | Tabla con búsqueda y filtro por estado, resumen del mes y formulario para agregar candidatos (valida campos, formato de correo y correo repetido). |
-| **Solicitudes** | Búsqueda, filtro por estado, formulario de nueva solicitud con validaciones y cambio de estado desde la tabla. |
-| **Opciones** | Modo oscuro, tamaño de letra, tamaño del sistema y fondos de pantalla. |
-
-## Contenidos del curso aplicados
-
-- **React** con Vite.
-- **Bootstrap 5** y diseño responsivo (grilla, tarjetas, tablas, menú lateral que se adapta a móvil).
-- **Componentes reutilizables, props, arreglos y `.map()`** (`IndicadorCard`, `BarrasEstado`, `Calendario`, tablas, etc.).
-- **`useState`** para el estado, además de `useMemo` y `useEffect`.
-- **Eventos, filtros y renderizado condicional** (búsqueda, filtro por estado, formularios que se abren y cierran).
-- **Formularios con validaciones** (login, registro, candidatos y solicitudes).
-- **React Router** para la navegación entre pantallas.
-- **Vitest** y Testing Library para las pruebas unitarias.
-
-## Tecnologías
-
-React 19 · Vite · Bootstrap 5 · React Router · Vitest · Testing Library · ESLint
+Aplicación web con **React + Vite** (frontend) y **Express** (backend, carpeta `server/`).
+Antes todo se guardaba en `localStorage`; ahora los datos viven en el servidor y el navegador los pide por HTTP.
 
 ## Cómo ejecutarlo
 
-Requisitos: Node.js 20 o superior.
+Requiere Node 20.19 o superior.
 
 ```bash
-npm install
-npm run dev
+npm install          # (no uses "npm ci": el package-lock.json aún no incluye Express)
+cp .env.example .env # opcional: puerto, archivo de datos, etc.
+npm run dev:all      # frontend en http://localhost:5173 y API en http://localhost:3001
 ```
+
+También se pueden levantar por separado: `npm run dev` (Vite) y `npm run server` (Express con recarga automática).
+
+**Producción:** `npm run build` y luego `npm start`. Express sirve la API (`/api`) y el frontend compilado (`dist/`)
+desde el mismo puerto.
+
+Cuentas de ejemplo: `admin / admin123`, `jefe.rrhh / rrhh123` (administradores) y `psicologo / psico123` (usuario).
+
+## Estructura del servidor
+
+| Archivo | Para qué sirve |
+| --- | --- |
+| `server/index.js` | Arranca Express (lee `.env`, abre el archivo de datos, escucha el puerto). |
+| `server/app.js` | Crea la aplicación Express: todas las rutas `/api` y el servicio del frontend compilado. |
+| `server/middleware.js` | Sesión (`Authorization: Bearer`), permisos por rol/sección, límite de intentos y manejo de errores. |
+| `server/dominio.js` | Las reglas del sistema (antes en `src/auth.js`): usuarios, solicitudes de acceso, presencia, notificaciones. |
+| `server/almacen.js` | Guarda los datos en `server/data/db.json` (escritura atómica). Sin base de datos externa. |
+| `server/seguridad.js` | Hash de contraseñas con scrypt (incluido en Node) y códigos aleatorios. |
+| `server/sesiones.js` | Sesiones en memoria (duran 8 horas desde la última actividad). |
+| `server/seed.js` | Datos de ejemplo de la primera ejecución. |
+
+En el frontend, `src/api.js` hace las peticiones y `src/auth.js` mantiene una copia local de los datos
+(se actualiza al iniciar sesión, tras cada cambio y cada 10 segundos).
+
+## API
+
+| Método y ruta | Quién | Descripción |
+| --- | --- | --- |
+| `POST /api/sesion` | público | Inicia sesión. Devuelve `{ token, sesion }`. |
+| `GET /api/sesion` · `DELETE /api/sesion` | sesión | Consulta / cierra la sesión. |
+| `GET /api/sincronizacion` | sesión | Usuarios, conexiones, notificaciones y solicitudes de acceso (el usuario normal solo recibe su propio registro). |
+| `POST /api/presencia/latido` · `/desconexion` | sesión | Estado conectado / inactivo / desconectado. |
+| `PATCH /api/usuarios/:usuario` | admin | Cambia rol y permisos. |
+| `PATCH /api/usuarios/:usuario/perfil` | el propio usuario o admin | Actualiza datos personales, foto y banner. |
+| `POST /api/accesos` | público | Envía una solicitud de acceso. |
+| `POST /api/accesos/consulta` | público | Consulta el estado con correo y código. |
+| `GET /api/accesos/ejemplos` | público | Solicitudes de ejemplo (se desactivan con `EJEMPLOS_DEMO=false`). |
+| `POST /api/accesos/:id/estado` · `/comentarios` | admin | Acepta/rechaza y comenta. El autor lo toma el servidor de la sesión. |
+| `GET/PUT /api/colecciones/candidatos` y `/solicitudes` | sesión (PUT con permiso de la sección) | Lista de candidatos y de solicitudes de evaluación. |
+
+## Pruebas
+
 ```bash
-npm install react-router-dom
-npm install -D vitest jsdom @testing-library/react @testing-library/user-event @testing-library/jest-dom @vitest/coverage-v8
+npm run test:run     # frontend (Vitest): levanta un servidor Express real por cada test
+npm run test:server  # servidor: reglas del dominio y API HTTP (node:test)
 ```
 
-La app queda en `http://localhost:5173`.
+## Cosas a tener en cuenta
 
-### Usuarios de prueba
-
-| Usuario | Contraseña | Rol |
-|---|---|---|
-| `admin` | `admin123` | Administrador |
-| `jefe.rrhh` | `rrhh123` | Administrador |
-| `psicologo` | `psico123` | Usuario |
-
-Solo los administradores ven el panel "Solicitudes de cuentas" dentro de Solicitudes.
-
-## Rutas
-
-| Ruta | Pantalla |
-|---|---|
-| `/inicio` | Inicio |
-| `/indicadores` | Indicadores |
-| `/candidatos` | Candidatos |
-| `/solicitudes` | Solicitudes |
-| `/opciones` | Opciones |
-
-Cualquier ruta que no exista redirige a `/inicio`. Sin sesión iniciada siempre se muestra el login.
-
-## Pruebas con Vitest
-
-```bash
-npm run test:run   # ejecuta todas las pruebas una vez
-npm test           # modo observador
-npm run coverage   # informe de cobertura
-```
-
-| Archivo | Qué comprueba |
-|---|---|
-| `src/logica.test.js` | Filtros y búsqueda, validación de formularios, correo repetido, cambio de estado e indicadores |
-| `src/App.test.jsx` | Login, navegación con React Router, ruta inexistente, formulario de candidatos y búsqueda |
-
-La lógica de filtros, validaciones e indicadores está en `src/logica.js`, separada de los componentes para poder probarla fácilmente.
-
-## Estructura del proyecto
-
-```
-src/
-├── components/     Componentes reutilizables (paneles, tarjetas, gráficos, menú)
-├── pages/          LoginPage y DashboardPage
-├── assets/         Imágenes y fondos
-├── logica.js       Funciones puras: filtros, validaciones, indicadores
-├── auth.js         Usuarios y solicitudes de cuenta simulados
-├── opciones.js     Preferencias de apariencia
-├── useAlmacenLocal.js  Hook para guardar listas en localStorage
-├── App.jsx         Rutas y estructura general
-└── main.jsx        Punto de entrada
-```
-
-## Integrantes
-
-- Nicolas Oyarzo
-- Matias Mansilla
-- Axel Levin
+- **Las contraseñas ya no se guardan en claro** (hash scrypt). La excepción es `credenciales` en las solicitudes
+  aceptadas: se conservan para que el solicitante vea su contraseña inicial en «Estado de solicitud», igual que antes.
+  Para producción conviene reemplazar eso por un enlace de «crear contraseña» enviado por correo.
+- Reiniciar el servidor cierra todas las sesiones (están en memoria). Los datos se conservan en `server/data/db.json`.
+- Candidatos y solicitudes de evaluación se guardan como lista completa: si dos personas editan a la vez, gana el
+  último guardado. Si el uso real lo requiere, el siguiente paso es pasar a endpoints por registro (crear / cambiar estado).
+- Para pasar a una base de datos real (SQLite, PostgreSQL), solo hay que reemplazar `server/almacen.js`.

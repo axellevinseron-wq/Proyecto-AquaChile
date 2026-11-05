@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Navigate, useParams } from "react-router-dom";
+import { Navigate, useNavigate, useParams } from "react-router-dom";
 import IndicadorCard from "../components/IndicadorCard";
 import SolicitudesPanel from "../components/SolicitudesPanel";
 import Calendario from "../components/Calendario";
@@ -8,95 +8,43 @@ import BarrasEstado from "../components/BarrasEstado";
 import GraficoDiasMes from "../components/GraficoDiasMes";
 import CandidatosPanel from "../components/CandidatosPanel";
 import UltimasSolicitudes from "../components/UltimasSolicitudes";
-import SolicitudesCuentaPanel from "../components/SolicitudesCuentaPanel";
-import PerfilPanel from "..//components/PerfilPanel";
-
-import { leerSolicitudesCuenta, resolverSolicitudCuenta } from "../auth";
-import { useAlmacenLocal } from "../useAlmacenLocal";
+import AccesoAdminPanel from "../components/AccesoAdminPanel";
+import UsuariosPanel from "../components/UsuariosPanel";
+import { useToast } from "../components/Toast";
+import { useAlmacenApi } from "../useAlmacenApi";
 import { hoyClave } from "../fechas";
 import { calcularIndicadores, cambiarEstadoSolicitud, existeCorreo } from "../logica";
 
-const VISTAS = ["inicio", "indicadores", "candidatos", "solicitudes","perfil"];
+const VISTAS = ["inicio", "indicadores", "candidatos", "solicitudes"];
+// Secciones que solo ven los administradores.
+const VISTAS_ADMIN = ["cuentas", "usuarios"];
 
-const candidatosIniciales = [
-  {
-    id: 1,
-    nombre: "Daniela Ríos",
-    correo: "daniela.rios@example.test",
-    cargo: "Analista de Datos",
-    familiaCargo: "Datos y Tecnología",
-  },
-  {
-    id: 2,
-    nombre: "Matías Fuentes",
-    correo: "matias.fuentes@example.test",
-    cargo: "Supervisor de Operaciones",
-    familiaCargo: "Operaciones",
-  },
-  {
-    id: 3,
-    nombre: "Camila Soto",
-    correo: "camila.soto@example.test",
-    cargo: "Psicóloga Organizacional",
-    familiaCargo: "Personas",
-  },
-  {
-    id: 4,
-    nombre: "Nicolás Pérez",
-    correo: "nicolas.perez@example.test",
-    cargo: "Técnico de Mantención",
-    familiaCargo: "Mantención",
-  },
-];
+// Candidatos y solicitudes de evaluación se cargan desde el servidor (los datos de ejemplo están en server/seed.js).
+const LISTA_VACIA = [];
 
-const solicitudesIniciales = [
-  {
-    id: 1,
-    candidatoId: 1,
-    candidato: "Daniela Ríos",
-    cargo: "Analista de Datos",
-    familiaCargo: "Datos y Tecnología",
-    estado: "Pendiente",
-    responsable: "Laura Pérez",
-    fechaSolicitud: "2026-10-12",
-  },
-  {
-    id: 2,
-    candidatoId: 2,
-    candidato: "Matías Fuentes",
-    cargo: "Supervisor de Operaciones",
-    familiaCargo: "Operaciones",
-    estado: "En proceso",
-    responsable: "Carlos Díaz",
-    fechaSolicitud: "2026-10-10",
-  },
-  {
-    id: 3,
-    candidatoId: 3,
-    candidato: "Camila Soto",
-    cargo: "Psicóloga Organizacional",
-    familiaCargo: "Personas",
-    estado: "Finalizada",
-    responsable: "Laura Pérez",
-    fechaSolicitud: "2026-10-08",
-  },
-];
-
-function DashboardPage({ esAdmin, usuario, onCambiarFoto }) {
+function DashboardPage({ sesion }) {
+  const esAdmin = sesion.rol === "Administrador";
+  const { notificar } = useToast();
   // La sección que se muestra viene de la URL (/inicio, /candidatos, ...)
   const { vista } = useParams();
+  const navigate = useNavigate();
 
-  const [candidatos, setCandidatos] = useAlmacenLocal("vcm-candidatos", candidatosIniciales);
-  const [solicitudes, setSolicitudes] = useAlmacenLocal("vcm-solicitudes", solicitudesIniciales);
-  const [solicitudesCuenta, setSolicitudesCuenta] = useState(leerSolicitudesCuenta);
+  const avisarError = (mensaje) => notificar(mensaje, "error");
+  const [candidatos, setCandidatos, estadoCandidatos] = useAlmacenApi("candidatos", LISTA_VACIA, avisarError);
+  const [solicitudes, setSolicitudes, estadoSolicitudes] = useAlmacenApi("solicitudes", LISTA_VACIA, avisarError);
 
-  const [diaElegido, setDiaElegido] = useState(() => {
+  // Mientras no elijas un día en el calendario, se muestra hoy (o el último día con solicitudes).
+  const [diaManual, setDiaElegido] = useState(null);
+  const diaElegido = useMemo(() => {
+    if (diaManual) {
+      return diaManual;
+    }
     const hoy = hoyClave();
     if (solicitudes.some((s) => s.fechaSolicitud === hoy)) {
       return hoy;
     }
     return solicitudes.map((s) => s.fechaSolicitud).sort().at(-1) ?? hoy;
-  });
+  }, [diaManual, solicitudes]);
 
   const solicitudesPorDia = useMemo(() => {
     const conteos = {};
@@ -127,10 +75,6 @@ function DashboardPage({ esAdmin, usuario, onCambiarFoto }) {
     [candidatos, solicitudes],
   );
 
-  function handleResolverCuenta(id, decision) {
-    setSolicitudesCuenta(resolverSolicitudCuenta(id, decision));
-  }
-
   function handleNuevoCandidato(datos) {
     const correo = datos.correo.trim();
     if (existeCorreo(candidatos, correo)) {
@@ -145,6 +89,7 @@ function DashboardPage({ esAdmin, usuario, onCambiarFoto }) {
       familiaCargo: datos.familiaCargo.trim(),
     };
     setCandidatos((actuales) => [...actuales, nuevo]);
+    notificar(`Candidato ${nuevo.nombre} guardado con éxito.`);
     return { ok: true };
   }
 
@@ -178,15 +123,40 @@ function DashboardPage({ esAdmin, usuario, onCambiarFoto }) {
     };
 
     setSolicitudes((solicitudesActuales) => [nuevaSolicitud, ...solicitudesActuales]);
+    notificar("Solicitud de evaluación registrada con éxito.");
   }
 
   function handleCambiarEstado(solicitudId, nuevoEstado) {
     setSolicitudes((actuales) => cambiarEstadoSolicitud(actuales, solicitudId, nuevoEstado));
+    notificar(`Estado actualizado a ${nuevoEstado}.`);
   }
 
-  // Si la URL no es una sección válida (ej. /cualquiera), vuelve al inicio.
-  if (!VISTAS.includes(vista)) {
+  // Si la URL no es una sección válida, o el usuario no tiene permiso para verla, vuelve al inicio.
+  const esVistaAdmin = VISTAS_ADMIN.includes(vista);
+  const permitida =
+    vista === "inicio" ||
+    (VISTAS.includes(vista) && sesion.permisos?.[vista] !== false) ||
+    (esVistaAdmin && esAdmin);
+  if (!permitida) {
     return <Navigate to="/inicio" replace />;
+  }
+
+  // Las secciones del sistema usan estas dos listas: se espera a tenerlas antes de mostrarlas.
+  if (estadoCandidatos === "error" || estadoSolicitudes === "error") {
+    return (
+      <main className="contenido">
+        <p className="alert alert-danger" role="alert">
+          No se pudieron cargar los datos. Revisa que el servidor esté encendido y vuelve a intentarlo.
+        </p>
+      </main>
+    );
+  }
+  if (estadoCandidatos === "cargando" || estadoSolicitudes === "cargando") {
+    return (
+      <main className="contenido">
+        <p className="text-secondary" role="status">Cargando datos...</p>
+      </main>
+    );
   }
 
   const tarjetas = (
@@ -261,6 +231,27 @@ function DashboardPage({ esAdmin, usuario, onCambiarFoto }) {
         </>
       )}
 
+      {(vista === "candidatos" || vista === "solicitudes") && (
+        <div className="gestion-cambio" role="group" aria-label="Cambiar entre candidatos y solicitudes">
+          {[
+            { id: "candidatos", texto: "Candidatos" },
+            { id: "solicitudes", texto: "Solicitudes" },
+          ]
+            .filter((opcion) => sesion.permisos?.[opcion.id] !== false)
+            .map((opcion) => (
+              <button
+                key={opcion.id}
+                type="button"
+                className={`gestion-cambio__boton ${vista === opcion.id ? "activo" : ""}`}
+                aria-pressed={vista === opcion.id}
+                onClick={() => navigate(`/${opcion.id}`)}
+              >
+                {opcion.texto}
+              </button>
+            ))}
+        </div>
+      )}
+
       {vista === "candidatos" && (
         <CandidatosPanel
           candidatos={candidatosConEstado}
@@ -275,26 +266,15 @@ function DashboardPage({ esAdmin, usuario, onCambiarFoto }) {
           candidatos={candidatos}
           onNuevaSolicitud={handleNuevaSolicitud}
           onCambiarEstado={handleCambiarEstado}
-          panelCuentas={
-            esAdmin ? (
-              <div className="card card-body caja caja--azul h-100">
-                <h2 className="h5 mb-3">Solicitudes de cuentas</h2>
-                <SolicitudesCuentaPanel
-                  solicitudes={solicitudesCuenta}
-                  onResolver={handleResolverCuenta}
-                />
-              </div>
-            ) : null
-          }
         />
       )}
-      {vista === "perfil" && (
-        <PerfilPanel usuario={usuario} onCambiarFoto={onCambiarFoto} />
-      )}
 
+      {vista === "cuentas" && <AccesoAdminPanel />}
+
+      {vista === "usuarios" && <UsuariosPanel usuarioActual={sesion.usuario} />}
 
       <p className="small text-secondary mt-4 mb-0">
-        Prototipo académico: los datos se guardan solo en este navegador (localStorage).
+        Prototipo académico: los datos se guardan en el servidor Express (archivo server/data/db.json).
       </p>
     </main>
   );

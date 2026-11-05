@@ -20,7 +20,6 @@ function SolicitudesPanel({
   candidatos,
   onNuevaSolicitud,
   onCambiarEstado,
-  panelCuentas = null,
 }) {
   const [busqueda, setBusqueda] = useState("");
   const [filtroEstado, setFiltroEstado] = useState("");
@@ -75,12 +74,10 @@ function SolicitudesPanel({
     setMensaje("La solicitud se agregó correctamente.");
   }
 
-  const conCuentas = panelCuentas !== null;
-
   return (
     <section id="solicitudes" aria-labelledby="titulo-solicitudes">
       <div className="row g-3">
-        <div className={`col-12 d-flex flex-column gap-3 ${conCuentas ? "col-lg-7" : ""}`}>
+        <div className="col-12 d-flex flex-column gap-3">
           <div className="card card-body caja caja--azul">
             <div className="mb-3">
               <h2 id="titulo-solicitudes" className="h4 mb-1">
@@ -285,7 +282,6 @@ function SolicitudesPanel({
           </div>
         </div>
 
-        {conCuentas && <div className="col-12 col-lg-5">{panelCuentas}</div>}
       </div>
     </section>
   );

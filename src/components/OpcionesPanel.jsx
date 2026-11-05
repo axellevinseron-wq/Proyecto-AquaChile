@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { FONDOS, GRUPOS_FONDO, SIN_FONDO } from "../fondos";
-import { LIMITES, OPCIONES_INICIALES } from "../opciones";
+import { COLOR_BARRA_BASE, COLORES_BARRA, LIMITES, OPCIONES_INICIALES } from "../opciones";
 
 function ControlTamano({ id, titulo, ayuda, valor, limites, onChange }) {
   return (
@@ -121,6 +121,39 @@ function OpcionesPanel({ opciones, onCambiar }) {
               Por defecto el sistema es blanco. Actívalo para usar la página y el menú lateral en
               tonos oscuros.
             </p>
+
+            <hr />
+            <label htmlFor="opcion-color-barra" className="form-label">Color de la barra superior</label>
+            <div className="d-flex flex-wrap align-items-center gap-2">
+              <input
+                id="opcion-color-barra"
+                type="color"
+                className="form-control form-control-color"
+                value={opciones.colorBarra || COLOR_BARRA_BASE}
+                onChange={(evento) => onCambiar({ colorBarra: evento.target.value })}
+                title="Elegir color"
+              />
+              {COLORES_BARRA.map((color) => (
+                <button
+                  key={color.valor}
+                  type="button"
+                  className={`color-muestra ${opciones.colorBarra === color.valor ? "activo" : ""}`}
+                  style={{ background: color.valor }}
+                  aria-label={`Barra superior ${color.nombre}`}
+                  aria-pressed={opciones.colorBarra === color.valor}
+                  onClick={() => onCambiar({ colorBarra: color.valor })}
+                />
+              ))}
+              <button
+                type="button"
+                className="btn btn-outline-secondary btn-sm"
+                onClick={() => onCambiar({ colorBarra: "" })}
+                disabled={!opciones.colorBarra}
+              >
+                Color original
+              </button>
+            </div>
+            <p className="form-text mb-0">Elige el color que quieras para la barra de arriba. Se guarda en este navegador.</p>
           </div>
 
           <div className="card card-body caja caja--azul">

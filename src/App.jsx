@@ -1,20 +1,42 @@
-import { useState } from "react";
-import { guardarFotoUsuario } from "./auth";
-import { Navigate, Route, Routes, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import OpcionesPanel from "./components/OpcionesPanel";
 import { FONDOS } from "./fondos";
-import { useOpciones } from "./opciones";
+import { coloresDesde, useOpciones } from "./opciones";
+import { AVISO_SESION_VENCIDA } from "./api";
+import { cerrarSesion, reiniciarDatos } from "./auth";
+import { usePresenciaPropia } from "./usePresencia";
+import { useSincronizacion } from "./useDatosAcceso";
 import AppNavbar from "./components/AppNavbar";
 import Sidebar from "./components/Sidebar";
+import PerfilPanel from "./components/PerfilPanel";
 import DashboardPage from "./pages/DashboardPage";
 import LoginPage from "./pages/LoginPage";
+import SolicitudAccesoPage from "./pages/SolicitudAccesoPage";
+import { ToastProvider, useToast } from "./components/Toast";
 
 const ES_ESCRITORIO = "(min-width: 768px)";
 
-function App() {
+function AppInterna() {
   const [usuario, setUsuario] = useState(null);
   const navigate = useNavigate();
+  const location = useLocation();
+  const { notificar } = useToast();
   const [opciones, setOpciones] = useOpciones();
+  usePresenciaPropia(usuario?.usuario);
+  useSincronizacion(Boolean(usuario));
+
+  // Si el servidor ya no reconoce la sesión (venció o se reinició), se vuelve al login.
+  useEffect(() => {
+    function alVencer() {
+      reiniciarDatos();
+      setUsuario(null);
+      navigate("/inicio");
+      notificar("Tu sesión venció. Vuelve a iniciar sesión.", "error");
+    }
+    window.addEventListener(AVISO_SESION_VENCIDA, alVencer);
+    return () => window.removeEventListener(AVISO_SESION_VENCIDA, alVencer);
+  }, [navigate, notificar]);
 
   const [sidebarAbierto, setSidebarAbierto] = useState(
     () => window.matchMedia(ES_ESCRITORIO).matches,
@@ -26,13 +48,20 @@ function App() {
     }
   }
 
-  function cambiarFoto(foto) {
-    guardarFotoUsuario(usuario.usuario, foto);
-    setUsuario({ ...usuario, foto });
+  // Página pública: no necesita iniciar sesión.
+  if (location.pathname === "/solicitud") {
+    return <SolicitudAccesoPage />;
   }
 
   if (!usuario) {
-    return <LoginPage onLogin={setUsuario} />;
+    return (
+      <LoginPage
+        onLogin={(sesion) => {
+          setUsuario(sesion);
+          notificar(`Sesión iniciada. ¡Bienvenido, ${sesion.usuario}!`);
+        }}
+      />
+    );
   }
 
   const fondo = FONDOS.find((f) => f.id === opciones.fondo);
@@ -40,11 +69,13 @@ function App() {
 
   return (
     <div
-      className={`app-shell ${sidebarAbierto ? "sidebar-abierto" : "sidebar-cerrado"} ${fondo?.imagen ? "con-fondo" : ""}`}
+      className={`app-shell ${opciones.colorBarra ? "con-color" : ""} ${sidebarAbierto ? "sidebar-abierto" : "sidebar-cerrado"} ${fondo?.imagen ? "con-fondo" : "con-degradado"}`}
       style={{
         zoom: escala,
         "--zoom-sistema": escala,
         "--fondo-imagen": fondo?.imagen ? `url("${fondo.imagen}")` : "none",
+        // Color elegido en Opciones: reemplaza el celeste/azul solo dentro del sistema
+        ...(opciones.colorBarra ? coloresDesde(opciones.colorBarra) : {}),
       }}
     >
       <AppNavbar
@@ -52,12 +83,14 @@ function App() {
         onToggleSidebar={() => setSidebarAbierto((abierto) => !abierto)}
       />
       <Sidebar
-        usuario={usuario.usuario}
-        foto={usuario.foto}
+        sesion={usuario}
         onNavegar={cerrarEnMovil}
+        onVerPerfil={() => navigate("/perfil")}
         onCerrarSesion={() => {
+          cerrarSesion();
           setUsuario(null);
           navigate("/inicio");
+          notificar("Sesión cerrada correctamente.");
         }}
       />
       <div className="sidebar-backdrop" onClick={cerrarEnMovil} aria-hidden="true" />
@@ -76,14 +109,15 @@ function App() {
               </main>
             }
           />
-          <Route 
-            path="/:vista" 
+          <Route
+            path="/perfil"
             element={
-              <DashboardPage 
-              esAdmin={usuario.rol === "Administrador"} 
-              usuario={usuario}
-              onCambiarFoto={cambiarFoto}
-              />} />
+              <main className="contenido">
+                <PerfilPanel sesion={usuario} />
+              </main>
+            }
+          />
+          <Route path="/:vista" element={<DashboardPage sesion={usuario} />} />
         </Routes>
       </div>
 
@@ -91,6 +125,14 @@ function App() {
         Copyright © 2026 todos los derechos reservados.
       </footer>
     </div>
+  );
+}
+
+function App() {
+  return (
+    <ToastProvider>
+      <AppInterna />
+    </ToastProvider>
   );
 }
 

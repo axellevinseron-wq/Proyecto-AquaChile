@@ -10,6 +10,28 @@ export function correoValido(correo) {
   return REGEX_CORREO.test(correo.trim());
 }
 
+// RUT chileno: acepta puntos y guion; comprueba el dígito verificador.
+export function rutValido(rut) {
+  const limpio = (rut ?? "").replace(/[.\-\s]/g, "").toUpperCase();
+  if (!/^\d{7,8}[\dK]$/.test(limpio)) {
+    return false;
+  }
+  const cuerpo = limpio.slice(0, -1);
+  let suma = 0;
+  let factor = 2;
+  for (let i = cuerpo.length - 1; i >= 0; i -= 1) {
+    suma += Number(cuerpo[i]) * factor;
+    factor = factor === 7 ? 2 : factor + 1;
+  }
+  const resto = 11 - (suma % 11);
+  const esperado = resto === 11 ? "0" : resto === 10 ? "K" : String(resto);
+  return limpio.slice(-1) === esperado;
+}
+
+export function telefonoValido(telefono) {
+  return /^\+?\d{8,12}$/.test((telefono ?? "").replace(/[\s-]/g, ""));
+}
+
 export function filtrarSolicitudes(solicitudes, busqueda, estado) {
   const termino = normalizar(busqueda.trim());
   return solicitudes.filter((solicitud) => {

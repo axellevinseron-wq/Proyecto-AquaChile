@@ -35,3 +35,19 @@ export function Fecha() {
     </div>
   );
 }
+
+// Formato: "Sep 14, 2026 | 11:50:31pm"
+export function FechaHora({ className = "" }) {
+  const ahora = useAhora();
+  const fecha = ahora.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  const hora = ahora
+    .toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", second: "2-digit", hour12: true })
+    .replace(/\s?(AM|PM)$/, (_, m) => m.toLowerCase());
+  const texto = `${fecha} | ${hora}`;
+
+  return (
+    <p className={className} aria-label={`Fecha y hora ${texto}`}>
+      {texto}
+    </p>
+  );
+}

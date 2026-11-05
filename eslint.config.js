@@ -18,4 +18,9 @@ export default defineConfig([
       parserOptions: { ecmaFeatures: { jsx: true } },
     },
   },
+  {
+    // El servidor Express corre en Node, no en el navegador.
+    files: ['server/**/*.js', 'vite.config.js'],
+    languageOptions: { globals: globals.node },
+  },
 ])
