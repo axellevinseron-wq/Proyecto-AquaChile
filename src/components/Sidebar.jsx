@@ -107,6 +107,26 @@ function Sidebar({ sesion, onNavegar, onCerrarSesion, onVerPerfil }) {
             <li className="sidebar-titulo sidebar-titulo--lista">Administración</li>
             <li>
               <NavLink
+                to="/ofertas"
+                className={({ isActive }) => `sidebar-link ${isActive ? "activo" : ""}`}
+                onClick={onNavegar}
+              >
+                <Icon nombre="grid" size={15} />
+                <span className="flex-grow-1 text-start">Ofertas de trabajo</span>
+              </NavLink>
+            </li>
+            <li>
+              <NavLink
+                to="/postulaciones"
+                className={({ isActive }) => `sidebar-link ${isActive ? "activo" : ""}`}
+                onClick={onNavegar}
+              >
+                <Icon nombre="usuarios" size={15} />
+                <span className="flex-grow-1 text-start">Postulaciones</span>
+              </NavLink>
+            </li>
+            <li>
+              <NavLink
                 to="/cuentas"
                 className={({ isActive }) => `sidebar-link ${isActive ? "activo" : ""}`}
                 onClick={onNavegar}

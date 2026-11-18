@@ -20,6 +20,20 @@ const TODOS_LOS_PERMISOS = Object.fromEntries(PERMISOS.map((p) => [p.id, true]))
 // Listas que el sistema guarda, y el permiso que hace falta para modificarlas.
 export const COLECCIONES = { candidatos: "candidatos", solicitudes: "solicitudes" };
 
+export const ESTADOS_OFERTA = ["Borrador", "Publicada", "Cerrada"];
+export const ESTADOS_POSTULACION = ["Recibida", "En revisión", "Entrevista", "Seleccionada", "No seleccionada"];
+
+export function ofertaVigente(oferta) {
+  const partes = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Santiago",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const fechaHoy = `${partes.find((parte) => parte.type === "year").value}-${partes.find((parte) => parte.type === "month").value}-${partes.find((parte) => parte.type === "day").value}`;
+  return oferta.estado === "Publicada" && (!oferta.fechaCierre || oferta.fechaCierre >= fechaHoy);
+}
+
 const MAX_IMAGEN = 1_500_000; // caracteres de la imagen en base64
 const MAX_COLECCION = 5000;
 const MAX_NOTIFICACIONES = 50;
@@ -332,4 +346,93 @@ export function reemplazarColeccion(datos, nombre, lista) {
   }
   datos[nombre] = lista;
   return { ok: true };
+}
+
+// ---------- Ofertas de trabajo y postulaciones ----------
+
+const CAMPOS_OFERTA = ["titulo", "area", "ubicacion", "modalidad", "jornada", "descripcion", "requisitos", "fechaCierre"];
+
+function datosOferta(entrada) {
+  return Object.fromEntries(CAMPOS_OFERTA.map((campo) => [campo, texto(entrada?.[campo])]));
+}
+
+function validarOferta(entrada, conEstado) {
+  const campos = datosOferta(entrada);
+  if (!campos.titulo || !campos.area || !campos.ubicacion || !campos.modalidad || !campos.jornada || !campos.descripcion) {
+    return error("Completa los campos obligatorios de la oferta.");
+  }
+  if (Object.entries(campos).some(([campo, valor]) => valor.length > (campo === "descripcion" || campo === "requisitos" ? 5000 : 160))) {
+    return error("Alguno de los campos de la oferta es demasiado largo.");
+  }
+  if (campos.fechaCierre && !/^\d{4}-\d{2}-\d{2}$/.test(campos.fechaCierre)) {
+    return error("La fecha de cierre no es válida.");
+  }
+  if (conEstado && !ESTADOS_OFERTA.includes(entrada?.estado)) {
+    return error("El estado de la oferta no es válido.");
+  }
+  return { ok: true, campos };
+}
+
+export function crearOferta(datos, entrada) {
+  const validacion = validarOferta(entrada, true);
+  if (!validacion.ok) return validacion;
+  const oferta = {
+    id: datos.ofertas.length ? Math.max(...datos.ofertas.map((item) => item.id)) + 1 : 1,
+    ...validacion.campos,
+    estado: entrada.estado,
+    esDemo: false,
+    creada: new Date().toISOString(),
+  };
+  datos.ofertas.unshift(oferta);
+  return { ok: true, oferta };
+}
+
+export function actualizarOferta(datos, id, entrada) {
+  const oferta = datos.ofertas.find((item) => item.id === id);
+  if (!oferta) return error("La oferta no existe.", 404);
+  const validacion = validarOferta(entrada, true);
+  if (!validacion.ok) return validacion;
+  Object.assign(oferta, validacion.campos, { estado: entrada.estado });
+  return { ok: true, oferta };
+}
+
+export function crearPostulacion(datos, entrada) {
+  const nombre = texto(entrada?.nombre);
+  const correo = texto(entrada?.correo);
+  const telefono = texto(entrada?.telefono);
+  const mensaje = texto(entrada?.mensaje);
+  const ofertaId = Number(entrada?.ofertaId);
+  const oferta = datos.ofertas.find((item) => item.id === ofertaId && ofertaVigente(item));
+
+  if (!oferta) return error("La oferta ya no está disponible.", 404);
+  if (!nombre || !correo || !telefono) return error("Completa tu nombre, correo y teléfono.");
+  if (nombre.length > 120 || correo.length > 200 || telefono.length > 40 || mensaje.length > 1500) {
+    return error("Alguno de tus datos es demasiado largo.");
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)) return error("Ingresa un correo válido.");
+  if (datos.postulaciones.some((item) => item.ofertaId === ofertaId && normalizar(item.correo) === normalizar(correo))) {
+    return error("Ya recibimos una postulación con ese correo para esta oferta.", 409);
+  }
+
+  const postulacion = {
+    id: datos.postulaciones.length ? Math.max(...datos.postulaciones.map((item) => item.id)) + 1 : 1,
+    ofertaId,
+    ofertaTitulo: oferta.titulo,
+    nombre,
+    correo,
+    telefono,
+    mensaje,
+    estado: "Recibida",
+    fecha: new Date().toISOString(),
+  };
+  datos.postulaciones.unshift(postulacion);
+  return { ok: true, postulacion };
+}
+
+export function actualizarEstadoPostulacion(datos, id, estado) {
+  const postulacion = datos.postulaciones.find((item) => item.id === id);
+  if (!postulacion) return error("La postulación no existe.", 404);
+  if (!ESTADOS_POSTULACION.includes(estado)) return error("El estado de la postulación no es válido.");
+  postulacion.estado = estado;
+  return { ok: true, postulacion };
 }

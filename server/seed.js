@@ -234,6 +234,51 @@ const SOLICITUDES_INICIALES = [
   },
 ];
 
+const OFERTAS_INICIALES = [
+  {
+    id: 1,
+    titulo: "Operador/a de Centro de Cultivo",
+    area: "Operaciones",
+    ubicacion: "Región de Los Lagos",
+    modalidad: "Presencial",
+    jornada: "Turnos rotativos",
+    descripcion: "Apoya las labores diarias del centro de cultivo, velando por el cumplimiento de los procedimientos operacionales y de seguridad.",
+    requisitos: "Enseñanza media completa. Se valorará experiencia en centros de cultivo o labores productivas.",
+    fechaCierre: "",
+    estado: "Publicada",
+    esDemo: true,
+    creada: "2026-11-01T12:00:00.000Z",
+  },
+  {
+    id: 2,
+    titulo: "Técnico/a de Mantención",
+    area: "Mantención",
+    ubicacion: "Puerto Montt, Los Lagos",
+    modalidad: "Presencial",
+    jornada: "Jornada completa",
+    descripcion: "Realiza mantenimiento preventivo y correctivo de equipos, registra intervenciones y coordina prioridades con el equipo de operaciones.",
+    requisitos: "Formación técnica en electricidad, mecánica o área afín. Experiencia en mantenimiento industrial deseable.",
+    fechaCierre: "",
+    estado: "Publicada",
+    esDemo: true,
+    creada: "2026-11-01T12:00:00.000Z",
+  },
+  {
+    id: 3,
+    titulo: "Analista de Personas",
+    area: "Personas",
+    ubicacion: "Puerto Montt, Los Lagos",
+    modalidad: "Híbrida",
+    jornada: "Jornada completa",
+    descripcion: "Colabora en procesos de selección, análisis de información y coordinación de iniciativas para los equipos de la compañía.",
+    requisitos: "Título profesional afín a Recursos Humanos, Psicología o Administración. Manejo de herramientas de oficina.",
+    fechaCierre: "",
+    estado: "Publicada",
+    esDemo: true,
+    creada: "2026-11-01T12:00:00.000Z",
+  },
+];
+
 // El hash de las cuentas de ejemplo se calcula una sola vez por proceso (scrypt es lento a propósito).
 let usuariosConHash = null;
 
@@ -254,5 +299,7 @@ export function crearDatosIniciales() {
     })),
     candidatos: structuredClone(CANDIDATOS_INICIALES),
     solicitudes: structuredClone(SOLICITUDES_INICIALES),
+    ofertas: structuredClone(OFERTAS_INICIALES),
+    postulaciones: [],
   };
 }

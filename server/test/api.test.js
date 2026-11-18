@@ -186,6 +186,85 @@ describe("Candidatos y solicitudes de evaluación", () => {
   });
 });
 
+describe("Ofertas y postulaciones", () => {
+  it("muestra ofertas sin sesión y recibe una postulación pública", async () => {
+    const lista = await pedir("GET", "/ofertas");
+    assert.equal(lista.status, 200);
+    assert.ok(lista.datos.items.some((item) => item.estado === "Publicada"));
+    assert.equal((await pedir("GET", "/admin/ofertas")).status, 401);
+
+    const oferta = lista.datos.items[0];
+    const creada = await pedir("POST", "/postulaciones", {
+      cuerpo: {
+        ofertaId: oferta.id,
+        nombre: "Ana Prueba",
+        correo: "ana@example.test",
+        telefono: "+56 9 1234 5678",
+        mensaje: "Tengo experiencia en operaciones.",
+      },
+    });
+    assert.equal(creada.status, 201);
+    assert.equal(creada.datos.postulacion.estado, "Recibida");
+    assert.equal((await pedir("POST", "/postulaciones", {
+      cuerpo: {
+        ofertaId: oferta.id,
+        nombre: "Ana Prueba",
+        correo: "ANA@example.test",
+        telefono: "+56 9 1234 5678",
+      },
+    })).status, 409);
+
+    const admin = await ingresar("admin", "admin123");
+    const privadas = await pedir("GET", "/admin/postulaciones", { token: admin });
+    assert.equal(privadas.status, 200);
+    assert.equal(privadas.datos.items[0].correo, "ana@example.test");
+    assert.equal((await pedir("GET", "/admin/postulaciones", { token: await ingresar("psicologo", "psico123") })).status, 403);
+  });
+
+  it("solo administradores crean ofertas y ofertas cerradas dejan de ser públicas", async () => {
+    const datosOferta = {
+      titulo: "Cargo de prueba",
+      area: "Operaciones",
+      ubicacion: "Puerto Montt",
+      modalidad: "Presencial",
+      jornada: "Jornada completa",
+      descripcion: "Descripción de prueba.",
+      requisitos: "",
+      fechaCierre: "",
+      estado: "Publicada",
+    };
+    const usuario = await ingresar("psicologo", "psico123");
+    assert.equal((await pedir("POST", "/admin/ofertas", { token: usuario, cuerpo: datosOferta })).status, 403);
+
+    const admin = await ingresar("admin", "admin123");
+    const creada = await pedir("POST", "/admin/ofertas", { token: admin, cuerpo: datosOferta });
+    assert.equal(creada.status, 200);
+    const id = creada.datos.oferta.id;
+    assert.equal((await pedir("GET", `/ofertas/${id}`)).status, 200);
+
+    const cerrada = await pedir("PATCH", `/admin/ofertas/${id}`, {
+      token: admin,
+      cuerpo: { ...datosOferta, estado: "Cerrada" },
+    });
+    assert.equal(cerrada.status, 200);
+    assert.equal((await pedir("GET", `/ofertas/${id}`)).status, 404);
+
+    const vencida = await pedir("POST", "/admin/ofertas", {
+      token: admin,
+      cuerpo: { ...datosOferta, titulo: "Oferta vencida", fechaCierre: "2020-01-01" },
+    });
+    assert.equal(vencida.status, 200);
+    assert.equal((await pedir("POST", "/postulaciones", {
+      cuerpo: {
+        ofertaId: vencida.datos.oferta.id,
+        nombre: "Ana Prueba",
+        correo: "ana-vencida@example.test",
+        telefono: "12345678",
+      },
+    })).status, 404);
+  });
+});
+
 describe("Errores", () => {
   it("una ruta que no existe responde JSON 404", async () => {
     const { status, datos } = await pedir("GET", "/no-existe");

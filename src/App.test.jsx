@@ -191,6 +191,23 @@ describe("Página pública de solicitudes", () => {
   });
 });
 
+describe("Portal público de empleos", () => {
+  it("muestra ofertas y permite enviar una postulación sin iniciar sesión", async () => {
+    const usuario = userEvent.setup();
+    mostrarApp("/empleos");
+    expect(await screen.findByRole("heading", { name: "Encuentra tu próximo desafío" })).toBeInTheDocument();
+    expect(await screen.findByText("Operador/a de Centro de Cultivo")).toBeInTheDocument();
+
+    await usuario.click(screen.getAllByRole("link", { name: /Ver oferta/ })[0]);
+    expect(await screen.findByRole("heading", { name: "Postula a esta oferta" })).toBeInTheDocument();
+    await usuario.type(screen.getByLabelText("Nombre completo"), "Ana Prueba");
+    await usuario.type(screen.getByLabelText("Correo electrónico"), "ana@example.test");
+    await usuario.type(screen.getByLabelText("Teléfono"), "+56 9 1234 5678");
+    await usuario.click(screen.getByRole("button", { name: "Enviar postulación" }));
+    expect(await screen.findByText(/Recibimos tu postulación/)).toBeInTheDocument();
+  });
+});
+
 describe("Administración", () => {
   it("el admin acepta una solicitud y el solicitante ve sus credenciales", async () => {
     const usuario = userEvent.setup();

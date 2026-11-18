@@ -13,6 +13,7 @@ import PerfilPanel from "./components/PerfilPanel";
 import DashboardPage from "./pages/DashboardPage";
 import LoginPage from "./pages/LoginPage";
 import SolicitudAccesoPage from "./pages/SolicitudAccesoPage";
+import EmpleosPage from "./pages/EmpleosPage";
 import { ToastProvider, useToast } from "./components/Toast";
 
 const ES_ESCRITORIO = "(min-width: 768px)";
@@ -51,6 +52,16 @@ function AppInterna() {
   // Página pública: no necesita iniciar sesión.
   if (location.pathname === "/solicitud") {
     return <SolicitudAccesoPage />;
+  }
+
+  if (location.pathname === "/empleos" || location.pathname.startsWith("/empleos/")) {
+    return (
+      <Routes>
+        <Route path="/empleos" element={<EmpleosPage />} />
+        <Route path="/empleos/:ofertaId" element={<EmpleosPage />} />
+        <Route path="*" element={<Navigate to="/empleos" replace />} />
+      </Routes>
+    );
   }
 
   if (!usuario) {

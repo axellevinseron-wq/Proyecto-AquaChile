@@ -10,6 +10,8 @@ import CandidatosPanel from "../components/CandidatosPanel";
 import UltimasSolicitudes from "../components/UltimasSolicitudes";
 import AccesoAdminPanel from "../components/AccesoAdminPanel";
 import UsuariosPanel from "../components/UsuariosPanel";
+import OfertasAdminPanel from "../components/OfertasAdminPanel";
+import PostulacionesAdminPanel from "../components/PostulacionesAdminPanel";
 import { useToast } from "../components/Toast";
 import { useAlmacenApi } from "../useAlmacenApi";
 import { hoyClave } from "../fechas";
@@ -17,7 +19,7 @@ import { calcularIndicadores, cambiarEstadoSolicitud, existeCorreo } from "../lo
 
 const VISTAS = ["inicio", "indicadores", "candidatos", "solicitudes"];
 // Secciones que solo ven los administradores.
-const VISTAS_ADMIN = ["cuentas", "usuarios"];
+const VISTAS_ADMIN = ["cuentas", "usuarios", "ofertas", "postulaciones"];
 
 // Candidatos y solicitudes de evaluación se cargan desde el servidor (los datos de ejemplo están en server/seed.js).
 const LISTA_VACIA = [];
@@ -272,6 +274,10 @@ function DashboardPage({ sesion }) {
       {vista === "cuentas" && <AccesoAdminPanel />}
 
       {vista === "usuarios" && <UsuariosPanel usuarioActual={sesion.usuario} />}
+
+      {vista === "ofertas" && <OfertasAdminPanel />}
+
+      {vista === "postulaciones" && <PostulacionesAdminPanel />}
 
       <p className="small text-secondary mt-4 mb-0">
         Prototipo académico: los datos se guardan en el servidor Express (archivo server/data/db.json).

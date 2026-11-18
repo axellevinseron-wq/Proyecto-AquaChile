@@ -1554,6 +1554,489 @@ a.sidebar-link {
   background: var(--bs-body-bg);
 }
 
+/* ---------- Portal público de empleos ---------- */
+.empleos {
+  --empleos-azul: #123b50;
+  --empleos-verde: #25866b;
+  min-height: 100vh;
+  color: #23333d;
+  background: #f5f8f7;
+}
+
+.empleos__barra {
+  height: 76px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 clamp(20px, 7vw, 112px);
+  background: #fff;
+  border-bottom: 1px solid #e8efec;
+}
+
+.empleos__marca {
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  color: var(--empleos-azul);
+  font-size: 1.05rem;
+  text-decoration: none;
+}
+
+.empleos__marca strong {
+  font-weight: 700;
+}
+
+.empleos__marca-icono {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px 12px 12px 3px;
+  color: #fff;
+  background: var(--empleos-verde);
+  font-size: 1.2rem;
+  font-weight: 800;
+}
+
+.empleos__acceso {
+  color: var(--empleos-azul);
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.empleos__acceso:hover,
+.empleos__marca:hover {
+  color: var(--empleos-verde);
+}
+
+.empleos__contenido {
+  width: min(1120px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: 48px 0 64px;
+}
+
+.empleos__hero {
+  position: relative;
+  overflow: hidden;
+  padding: clamp(30px, 6vw, 70px);
+  border-radius: 20px;
+  color: #fff;
+  background:
+    radial-gradient(ellipse at 86% 20%, rgb(91 171 142 / 42%), transparent 34%),
+    linear-gradient(120deg, #123b50, #1d645c);
+}
+
+.empleos__eyebrow {
+  color: #a9dec6;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+}
+
+.empleos__hero h1 {
+  max-width: 640px;
+  margin: 14px 0 10px;
+  font-size: clamp(2rem, 5vw, 3.35rem);
+  font-weight: 750;
+  letter-spacing: -0.035em;
+}
+
+.empleos__hero p {
+  max-width: 560px;
+  margin-bottom: 25px;
+  color: rgb(255 255 255 / 82%);
+}
+
+.empleos__busqueda {
+  width: min(600px, 100%);
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 17px;
+  border-radius: 9px;
+  color: #50636a;
+  background: #fff;
+  font-size: 1.45rem;
+}
+
+.empleos__busqueda input {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  color: #23333d;
+  font-size: 0.95rem;
+}
+
+.empleos__resultados {
+  padding-top: 40px;
+}
+
+.empleos__encabezado-lista {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  margin-bottom: 18px;
+}
+
+.empleos__encabezado-lista h2 {
+  margin-bottom: 5px;
+  color: var(--empleos-azul);
+  font-size: 1.45rem;
+  font-weight: 700;
+}
+
+.empleos__encabezado-lista p {
+  margin: 0;
+  color: #6b7b80;
+  font-size: 0.92rem;
+}
+
+.empleos__contador,
+.empleos__area {
+  color: var(--empleos-verde);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.empleos__etiquetas-superiores {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.empleos__demo {
+  padding: 4px 7px;
+  border-radius: 5px;
+  color: #80621d;
+  background: #fff3cc;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.empleos__detalle-cabecera .empleos__demo {
+  color: #6b5319;
+}
+
+.empleos__contador {
+  padding: 7px 11px;
+  border-radius: 99px;
+  background: #e4f2ec;
+  white-space: nowrap;
+}
+
+.empleos__rejilla {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 17px;
+}
+
+.empleos__tarjeta {
+  min-height: 258px;
+  display: flex;
+  flex-direction: column;
+  padding: 22px;
+  border: 1px solid #e4ece8;
+  border-radius: 13px;
+  background: #fff;
+  box-shadow: 0 5px 16px rgb(22 57 47 / 4%);
+  transition: transform 150ms ease, box-shadow 150ms ease;
+}
+
+.empleos__tarjeta:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 26px rgb(22 57 47 / 9%);
+}
+
+.empleos__tarjeta-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 17px;
+}
+
+.empleos__icono {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  color: var(--empleos-verde);
+  background: #e9f4ef;
+}
+
+.empleos__tarjeta h3 {
+  margin: 0 0 8px;
+  color: var(--empleos-azul);
+  font-size: 1.12rem;
+  font-weight: 700;
+}
+
+.empleos__ubicacion {
+  margin: 0;
+  color: #6b7b80;
+  font-size: 0.88rem;
+}
+
+.empleos__etiquetas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 16px;
+}
+
+.empleos__etiquetas span {
+  padding: 5px 8px;
+  border-radius: 5px;
+  color: #566a70;
+  background: #f2f5f4;
+  font-size: 0.75rem;
+}
+
+.empleos__ver {
+  display: flex;
+  justify-content: space-between;
+  margin-top: auto;
+  padding-top: 19px;
+  color: var(--empleos-verde);
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.empleos__detalle {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.empleos__volver {
+  display: inline-block;
+  margin-bottom: 22px;
+  color: var(--empleos-verde);
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.empleos__detalle-cabecera {
+  padding: 30px;
+  border-radius: 15px;
+  color: #fff;
+  background: linear-gradient(120deg, #123b50, #1d645c);
+}
+
+.empleos__detalle-cabecera .empleos__area {
+  color: #a9dec6;
+}
+
+.empleos__detalle-cabecera h1 {
+  margin: 10px 0;
+  font-size: clamp(1.7rem, 4vw, 2.5rem);
+}
+
+.empleos__detalle-cabecera p {
+  margin: 0;
+  color: rgb(255 255 255 / 82%);
+}
+
+.empleos__detalle-grid {
+  display: grid;
+  grid-template-columns: 1fr minmax(280px, 0.72fr);
+  align-items: start;
+  gap: 22px;
+  margin-top: 22px;
+}
+
+.empleos__descripcion,
+.empleos__formulario {
+  padding: 25px;
+  border: 1px solid #e4ece8;
+  border-radius: 13px;
+  background: #fff;
+}
+
+.empleos__descripcion h2,
+.empleos__formulario h2 {
+  color: var(--empleos-azul);
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.empleos__descripcion h2:not(:first-child) {
+  margin-top: 28px;
+}
+
+.empleos__descripcion p,
+.empleos__formulario p {
+  color: #607178;
+  line-height: 1.7;
+}
+
+.empleos__cierre {
+  margin-top: 25px;
+  font-size: 0.85rem;
+}
+
+.empleos__formulario > p {
+  font-size: 0.9rem;
+}
+
+.empleos__formulario label {
+  display: block;
+  margin-top: 14px;
+  color: #344b52;
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.empleos__formulario label span {
+  color: #829096;
+  font-weight: 400;
+}
+
+.empleos__formulario input,
+.empleos__formulario textarea {
+  width: 100%;
+  display: block;
+  margin-top: 6px;
+  padding: 10px 11px;
+  border: 1px solid #d9e3df;
+  border-radius: 7px;
+  font: inherit;
+}
+
+.empleos__formulario input:focus,
+.empleos__formulario textarea:focus {
+  border-color: var(--empleos-verde);
+  outline: 3px solid rgb(37 134 107 / 14%);
+}
+
+.empleos__formulario button {
+  width: 100%;
+  margin-top: 17px;
+  padding: 12px;
+  border: 0;
+  border-radius: 7px;
+  color: #fff;
+  background: var(--empleos-verde);
+  font-weight: 700;
+}
+
+.empleos__formulario button:hover {
+  background: #1d7059;
+}
+
+.empleos__formulario button:disabled {
+  opacity: 0.65;
+}
+
+.empleos__formulario small {
+  display: block;
+  margin-top: 10px;
+  color: #78878c;
+  line-height: 1.5;
+}
+
+.empleos__exito,
+.empleos__vacio {
+  padding: 15px;
+  border-radius: 8px;
+  color: #225d47;
+  background: #e7f4ed;
+}
+
+.empleos__vacio {
+  padding: 28px;
+  color: #566a70;
+  background: #fff;
+  text-align: center;
+}
+
+.empleos__vacio h3 {
+  color: var(--empleos-azul);
+  font-size: 1.1rem;
+}
+
+.empleos__vacio p {
+  margin-bottom: 0;
+}
+
+.empleos__error {
+  color: #a52c31;
+}
+
+.empleos__pie {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  padding: 20px clamp(20px, 7vw, 112px);
+  border-top: 1px solid #e4ece8;
+  color: #6b7b80;
+  background: #fff;
+  font-size: 0.82rem;
+}
+
+.admin-empleos__encabezado {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.admin-empleos__mensaje {
+  min-width: 180px;
+  max-width: 300px;
+  white-space: pre-wrap;
+}
+
+@media (max-width: 800px) {
+  .empleos__rejilla {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .empleos__detalle-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .empleos__barra {
+    height: 64px;
+    padding: 0 18px;
+  }
+
+  .empleos__contenido {
+    width: min(100% - 28px, 520px);
+    padding-top: 22px;
+  }
+
+  .empleos__rejilla {
+    grid-template-columns: 1fr;
+  }
+
+  .empleos__tarjeta {
+    min-height: 230px;
+  }
+
+  .empleos__detalle-cabecera,
+  .empleos__descripcion,
+  .empleos__formulario {
+    padding: 21px;
+  }
+
+  .empleos__pie {
+    flex-direction: column;
+    padding: 18px;
+  }
+
+  .admin-empleos__encabezado {
+    align-items: flex-start;
+  }
+}
+
 .pub-cuerpo {
   /* El fondo viene de la regla compartida con .login-page */
   display: grid;

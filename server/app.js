@@ -11,9 +11,13 @@ import {
   actualizarPerfil,
   actualizarUsuario,
   agregarComentarioAcceso,
+  actualizarEstadoPostulacion,
+  actualizarOferta,
   cambiarEstadoAcceso,
   COLECCIONES,
   consultarSolicitud,
+  crearOferta,
+  crearPostulacion,
   crearSolicitudAcceso,
   ejemplosConsulta,
   iniciarSesion,
@@ -21,6 +25,7 @@ import {
   marcarConexion,
   marcarDesconexion,
   obtenerConexiones,
+  ofertaVigente,
   reemplazarColeccion,
   registrarLatido,
   sesionDe,
@@ -64,6 +69,7 @@ export function crearApp({
   const limiteLogin = crearLimitador({ max: 10, ventanaMs: 10 * MINUTOS });
   const limiteConsulta = crearLimitador({ max: 30, ventanaMs: 10 * MINUTOS });
   const limiteEnvio = crearLimitador({ max: 20, ventanaMs: 60 * MINUTOS });
+  const limitePostulacion = crearLimitador({ max: 20, ventanaMs: 60 * MINUTOS });
 
   app.disable("x-powered-by");
   app.use((req, res, next) => {
@@ -242,6 +248,62 @@ export function crearApp({
 
   api.get("/accesos/ejemplos", (req, res) => {
     res.json({ ejemplos: ejemplosDemo ? ejemplosConsulta(datos()) : [] });
+  });
+
+  // ---------- Ofertas y postulaciones ----------
+
+  api.get("/ofertas", (req, res) => {
+    const items = datos().ofertas.filter(ofertaVigente);
+    res.json({ items });
+  });
+
+  api.get("/ofertas/:id", (req, res) => {
+    const id = idDe(req);
+    const oferta = datos().ofertas.find((item) => item.id === id && ofertaVigente(item));
+    if (!oferta) return res.status(404).json({ error: "La oferta no existe o ya no está disponible." });
+    return res.json({ oferta });
+  });
+
+  api.get("/admin/ofertas", requiereSesion, requiereAdmin, (req, res) => {
+    res.json({ items: datos().ofertas });
+  });
+
+  api.post("/admin/ofertas", requiereSesion, requiereAdmin, (req, res) => {
+    const resultado = crearOferta(datos(), req.body ?? {});
+    if (resultado.ok) almacen.guardar();
+    return responder(res, resultado, { oferta: resultado.oferta });
+  });
+
+  api.patch("/admin/ofertas/:id", requiereSesion, requiereAdmin, (req, res) => {
+    const id = idDe(req);
+    if (id === null) return res.status(400).json({ error: "Oferta no válida." });
+    const resultado = actualizarOferta(datos(), id, req.body ?? {});
+    if (resultado.ok) almacen.guardar();
+    return responder(res, resultado, { oferta: resultado.oferta });
+  });
+
+  api.post("/postulaciones", (req, res) => {
+    if (limitePostulacion.excedido(req.ip)) return demasiadosIntentos(res);
+    const resultado = crearPostulacion(datos(), req.body ?? {});
+    if (!resultado.ok) {
+      if (resultado.status !== 409 && resultado.status !== 404) limitePostulacion.contar(req.ip);
+      return responder(res, resultado);
+    }
+    limitePostulacion.contar(req.ip);
+    almacen.guardar();
+    return res.status(201).json({ postulacion: resultado.postulacion });
+  });
+
+  api.get("/admin/postulaciones", requiereSesion, requiereAdmin, (req, res) => {
+    res.json({ items: datos().postulaciones });
+  });
+
+  api.patch("/admin/postulaciones/:id/estado", requiereSesion, requiereAdmin, (req, res) => {
+    const id = idDe(req);
+    if (id === null) return res.status(400).json({ error: "Postulación no válida." });
+    const resultado = actualizarEstadoPostulacion(datos(), id, req.body?.estado);
+    if (resultado.ok) almacen.guardar();
+    return responder(res, resultado, { postulacion: resultado.postulacion });
   });
 
   // Solo administradores.

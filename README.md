@@ -50,7 +50,18 @@ En el frontend, `src/api.js` hace las peticiones y `src/auth.js` mantiene una co
 | `POST /api/accesos/consulta` | público | Consulta el estado con correo y código. |
 | `GET /api/accesos/ejemplos` | público | Solicitudes de ejemplo (se desactivan con `EJEMPLOS_DEMO=false`). |
 | `POST /api/accesos/:id/estado` · `/comentarios` | admin | Acepta/rechaza y comenta. El autor lo toma el servidor de la sesión. |
+| `GET /api/ofertas` · `/ofertas/:id` | público | Lista ofertas publicadas y consulta su detalle. |
+| `POST /api/postulaciones` | público | Envía una postulación a una oferta vigente. |
+| `GET/POST /api/admin/ofertas` · `PATCH /api/admin/ofertas/:id` | admin | Consulta, crea y actualiza ofertas. |
+| `GET /api/admin/postulaciones` · `PATCH /api/admin/postulaciones/:id/estado` | admin | Revisa postulaciones y actualiza su estado. |
 | `GET/PUT /api/colecciones/candidatos` y `/solicitudes` | sesión (PUT con permiso de la sección) | Lista de candidatos y de solicitudes de evaluación. |
+
+## Portal de empleos
+
+- `/empleos` muestra las ofertas públicas; `/empleos/:id` presenta el detalle y el formulario de postulación.
+- El panel interno tiene secciones de administración para ofertas y postulaciones, disponibles solo para administradores.
+- Ofertas, postulaciones y solicitudes de evaluación son datos distintos. Las postulaciones no crean automáticamente una evaluación psicolaboral.
+- Las ofertas iniciales están marcadas como ejemplos para la vista de demostración. Las postulaciones guardan nombre, correo, teléfono y mensaje, sin adjuntos.
 
 ## Pruebas
 
@@ -67,4 +78,6 @@ npm run test:server  # servidor: reglas del dominio y API HTTP (node:test)
 - Reiniciar el servidor cierra todas las sesiones (están en memoria). Los datos se conservan en `server/data/db.json`.
 - Candidatos y solicitudes de evaluación se guardan como lista completa: si dos personas editan a la vez, gana el
   último guardado. Si el uso real lo requiere, el siguiente paso es pasar a endpoints por registro (crear / cambiar estado).
+- Las ofertas y postulaciones también se guardan en `server/data/db.json`; para un uso real con datos personales conviene
+  migrar a una base de datos y definir políticas de privacidad, retención y seguridad antes de publicar el portal.
 - Para pasar a una base de datos real (SQLite, PostgreSQL), solo hay que reemplazar `server/almacen.js`.
