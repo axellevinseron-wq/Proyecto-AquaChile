@@ -58,7 +58,8 @@ En el frontend, `src/api.js` hace las peticiones y `src/auth.js` mantiene una co
 
 ## Portal de empleos
 
-- `/empleos` muestra las ofertas públicas; `/empleos/:id` presenta el detalle y el formulario de postulación.
+- `/` muestra las ofertas públicas; `/empleos` es un alias y `/empleos/:id` presenta el detalle y el formulario de postulación.
+- `/acceso` es la entrada al sistema interno; el portal público enlaza allí como «Acceso equipo».
 - El panel interno tiene secciones de administración para ofertas y postulaciones, disponibles solo para administradores.
 - Ofertas, postulaciones y solicitudes de evaluación son datos distintos. Las postulaciones no crean automáticamente una evaluación psicolaboral.
 - Las ofertas iniciales están marcadas como ejemplos para la vista de demostración. Las postulaciones guardan nombre, correo, teléfono y mensaje, sin adjuntos.

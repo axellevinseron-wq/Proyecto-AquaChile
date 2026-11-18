@@ -32,7 +32,7 @@ function AppInterna() {
     function alVencer() {
       reiniciarDatos();
       setUsuario(null);
-      navigate("/inicio");
+      navigate("/acceso");
       notificar("Tu sesión venció. Vuelve a iniciar sesión.", "error");
     }
     window.addEventListener(AVISO_SESION_VENCIDA, alVencer);
@@ -54,9 +54,14 @@ function AppInterna() {
     return <SolicitudAccesoPage />;
   }
 
-  if (location.pathname === "/empleos" || location.pathname.startsWith("/empleos/")) {
+  if (
+    location.pathname === "/" ||
+    location.pathname === "/empleos" ||
+    location.pathname.startsWith("/empleos/")
+  ) {
     return (
       <Routes>
+        <Route path="/" element={<EmpleosPage />} />
         <Route path="/empleos" element={<EmpleosPage />} />
         <Route path="/empleos/:ofertaId" element={<EmpleosPage />} />
         <Route path="*" element={<Navigate to="/empleos" replace />} />
@@ -100,7 +105,7 @@ function AppInterna() {
         onCerrarSesion={() => {
           cerrarSesion();
           setUsuario(null);
-          navigate("/inicio");
+          navigate("/acceso");
           notificar("Sesión cerrada correctamente.");
         }}
       />

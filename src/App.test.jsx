@@ -16,17 +16,18 @@ async function iniciarSesion(usuario) {
   await usuario.type(screen.getByLabelText("Usuario"), "admin");
   await usuario.type(screen.getByLabelText("Contraseña"), "admin123");
   await usuario.click(screen.getByRole("button", { name: "INGRESAR" }));
+  await screen.findByRole("link", { name: "Candidatos y solicitudes" });
 }
 
 describe("Login", () => {
   it("muestra el login si no hay sesión", () => {
-    mostrarApp("/candidatos");
+    mostrarApp("/acceso");
     expect(screen.getByRole("heading", { name: "Iniciar sesión" })).toBeInTheDocument();
   });
 
   it("muestra error con credenciales incorrectas", async () => {
     const usuario = userEvent.setup();
-    mostrarApp();
+    mostrarApp("/acceso");
     await usuario.type(screen.getByLabelText("Usuario"), "admin");
     await usuario.type(screen.getByLabelText("Contraseña"), "mala");
     await usuario.click(screen.getByRole("button", { name: "INGRESAR" }));
@@ -35,9 +36,9 @@ describe("Login", () => {
 });
 
 describe("Navegación con React Router", () => {
-  it("después de ingresar, / lleva a Inicio", async () => {
+  it("después de ingresar desde /acceso lleva a Inicio", async () => {
     const usuario = userEvent.setup();
-    mostrarApp("/");
+    mostrarApp("/acceso");
     await iniciarSesion(usuario);
     expect(await screen.findByRole("heading", { name: "Inicio" })).toBeInTheDocument();
   });
@@ -111,16 +112,17 @@ describe("Candidatos: formulario y búsqueda", () => {
 });
 
 describe("Login sin crear cuenta", () => {
-  it("ya no ofrece crear cuenta y enlaza a la página de solicitudes", () => {
-    mostrarApp("/");
+  it("en /acceso enlaza a las ofertas y a las páginas de solicitudes", () => {
+    mostrarApp("/acceso");
     expect(screen.queryByText("Crear cuenta")).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Enviar una solicitud de acceso" })).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Ver el estado de mi solicitud" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Ver el estado de mi solicitud" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Ver ofertas de trabajo" })).toHaveAttribute("href", "/");
   });
 
   it("al ingresar muestra la notificación de éxito", async () => {
     const usuario = userEvent.setup();
-    mostrarApp("/");
+    mostrarApp("/acceso");
     await iniciarSesion(usuario);
     expect(await screen.findByText(/Sesión iniciada/)).toBeInTheDocument();
   });
@@ -192,6 +194,14 @@ describe("Página pública de solicitudes", () => {
 });
 
 describe("Portal público de empleos", () => {
+  it("usa las ofertas como portada y lleva el acceso interno a /acceso", async () => {
+    const usuario = userEvent.setup();
+    mostrarApp("/");
+    expect(await screen.findByRole("heading", { name: "Encuentra tu próximo desafío" })).toBeInTheDocument();
+    await usuario.click(screen.getByRole("link", { name: "Acceso equipo" }));
+    expect(await screen.findByRole("heading", { name: "Iniciar sesión" })).toBeInTheDocument();
+  });
+
   it("muestra ofertas y permite enviar una postulación sin iniciar sesión", async () => {
     const usuario = userEvent.setup();
     mostrarApp("/empleos");

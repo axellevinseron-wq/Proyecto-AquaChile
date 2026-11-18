@@ -263,7 +263,7 @@ function ConsultaEstado({ correoInicial, codigoInicial }) {
                 <dt>Contraseña</dt>
                 <dd>{solicitud.credenciales.clave}</dd>
               </dl>
-              <Link to="/" className="btn pub-boton btn-sm">Ir al inicio de sesión</Link>
+              <Link to="/acceso" className="btn pub-boton btn-sm">Ir al inicio de sesión</Link>
             </div>
           )}
           {solicitud.estado === "Rechazada" && (
@@ -320,7 +320,7 @@ function SolicitudAccesoPage() {
   return (
     <div className="pub-app">
       <nav className="pub-rail" aria-label="Accesos rápidos">
-        <button type="button" className="pub-rail__btn" aria-label="Ir al inicio de sesión" onClick={() => navigate("/")}>
+        <button type="button" className="pub-rail__btn" aria-label="Ir al inicio de sesión" onClick={() => navigate("/acceso")}>
           <Icon nombre="home" size={20} />
           <span className="pub-rail__texto">Inicio de sesión</span>
         </button>

@@ -83,7 +83,7 @@ function EmpleosPage() {
           <span className="empleos__marca-icono" aria-hidden="true">A</span>
           <span>AquaChile <strong>Empleos</strong></span>
         </Link>
-        <Link className="empleos__acceso" to="/">Acceso equipo</Link>
+        <Link className="empleos__acceso" to="/acceso">Acceso equipo</Link>
       </header>
 
       <main className="empleos__contenido">

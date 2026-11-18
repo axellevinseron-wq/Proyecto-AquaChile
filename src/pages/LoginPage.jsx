@@ -121,7 +121,7 @@ function LoginPage({ onLogin }) {
         </button>
 
         <div className="login-accesos">
-          <Link to="/empleos" className="login-olvido">
+          <Link to="/" className="login-olvido">
             Ver ofertas de trabajo
           </Link>
           <Link to="/solicitud?tab=enviar" className="login-olvido">
