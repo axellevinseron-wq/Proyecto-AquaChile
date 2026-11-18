@@ -8,7 +8,6 @@ import BarrasEstado from "../components/BarrasEstado";
 import GraficoDiasMes from "../components/GraficoDiasMes";
 import CandidatosPanel from "../components/CandidatosPanel";
 import UltimasSolicitudes from "../components/UltimasSolicitudes";
-import AccesoAdminPanel from "../components/AccesoAdminPanel";
 import UsuariosPanel from "../components/UsuariosPanel";
 import OfertasAdminPanel from "../components/OfertasAdminPanel";
 import PostulacionesAdminPanel from "../components/PostulacionesAdminPanel";
@@ -19,7 +18,7 @@ import { calcularIndicadores, cambiarEstadoSolicitud, existeCorreo } from "../lo
 
 const VISTAS = ["inicio", "indicadores", "candidatos", "solicitudes"];
 // Secciones que solo ven los administradores.
-const VISTAS_ADMIN = ["cuentas", "usuarios", "ofertas", "postulaciones"];
+const VISTAS_ADMIN = ["usuarios", "ofertas", "postulaciones"];
 
 // Candidatos y solicitudes de evaluación se cargan desde el servidor (los datos de ejemplo están en server/seed.js).
 const LISTA_VACIA = [];
@@ -270,8 +269,6 @@ function DashboardPage({ sesion }) {
           onCambiarEstado={handleCambiarEstado}
         />
       )}
-
-      {vista === "cuentas" && <AccesoAdminPanel />}
 
       {vista === "usuarios" && <UsuariosPanel usuarioActual={sesion.usuario} />}
 

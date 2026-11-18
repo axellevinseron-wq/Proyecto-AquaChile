@@ -3,9 +3,8 @@
 // Quien las llama (las rutas de Express) decide cuándo guardar en disco.
 
 import { correoValido, rutValido, telefonoValido } from "../src/logica.js";
-import { claveCoincide, hashClave, textoAleatorio } from "./seguridad.js";
+import { claveCoincide, hashClave, hashToken, textoAleatorio, tokenSesion } from "./seguridad.js";
 
-export const ESTADOS_ACCESO = ["Pendiente", "Aceptada", "Rechazada"];
 export const ROLES = ["Administrador", "Usuario"];
 
 // Secciones del sistema que se pueden permitir o quitar a cada usuario.
@@ -39,10 +38,6 @@ const MAX_COLECCION = 5000;
 const MAX_NOTIFICACIONES = 50;
 
 // ---------- Utilidades ----------
-
-export function nombreCompleto(persona) {
-  return `${persona?.nombre ?? ""} ${persona?.apellido ?? ""}`.trim();
-}
 
 function normalizar(texto) {
   return (texto ?? "").toString().trim().toLowerCase();
@@ -129,145 +124,153 @@ export function actualizarPerfil(datos, nombreUsuario, { nombre, correo, telefon
   return { ok: true };
 }
 
-// ---------- Solicitudes de acceso ----------
+// ---------- Invitaciones de usuario ----------
 
-export function tieneSolicitudPendiente(datos, usuario) {
-  const nombre = normalizar(usuario);
-  return datos.solicitudesAcceso.some((s) => s.estado === "Pendiente" && s.usuario.toLowerCase() === nombre);
-}
+const DURACION_INVITACION = 24 * 60 * 60 * 1000;
+const LARGO_MINIMO_CLAVE = 12;
 
-export function crearSolicitudAcceso(datos, entrada) {
-  const campos = {
-    nombre: texto(entrada?.nombre),
-    apellido: texto(entrada?.apellido),
-    rut: texto(entrada?.rut),
-    telefono: texto(entrada?.telefono),
-    correo: texto(entrada?.correo),
-    usuario: texto(entrada?.usuario),
-    motivo: texto(entrada?.motivo),
+function camposInvitacion(entrada) {
+  const usuario = texto(entrada?.usuario);
+  const nombre = texto(entrada?.nombre);
+  const correo = texto(entrada?.correo);
+  const rol = texto(entrada?.rol);
+  if (!usuario || !nombre || !correo || !rol) return error("Completa todos los campos.");
+  if (usuario.length > 50 || !/^[A-Za-z0-9._-]+$/.test(usuario)) {
+    return error("El usuario debe tener hasta 50 caracteres y solo incluir letras, números, punto, guion o guion bajo.");
+  }
+  if (nombre.length > 120 || correo.length > 200 || !correoValido(correo)) {
+    return error("El nombre o correo no es válido.");
+  }
+  if (!ROLES.includes(rol)) return error("El rol no es válido.");
+  return {
+    ok: true,
+    campos: {
+      usuario,
+      nombre,
+      correo,
+      rol,
+      permisos: rol === "Administrador"
+        ? { ...TODOS_LOS_PERMISOS }
+        : Object.fromEntries(PERMISOS.map((permiso) => [permiso.id, entrada.permisos?.[permiso.id] === true])),
+    },
   };
-
-  if (!campos.nombre || !campos.correo || !campos.usuario || !campos.motivo) {
-    return error("Completa todos los campos.");
-  }
-  if (Object.values(campos).some((valor) => valor.length > 1000)) {
-    return error("Alguno de los datos es demasiado largo.");
-  }
-  if (!correoValido(campos.correo)) return error("Ingresa un correo válido.");
-  if (campos.rut && !rutValido(campos.rut)) return error("Ingresa un RUT válido, por ejemplo 12.345.678-5.");
-  if (campos.telefono && !telefonoValido(campos.telefono)) return error("Ingresa un teléfono válido (8 a 12 dígitos).");
-  if (/\s/.test(campos.usuario)) return error("El usuario no puede tener espacios.");
-
-  const minuscula = campos.usuario.toLowerCase();
-  if (
-    datos.usuarios.some((u) => u.usuario.toLowerCase() === minuscula) ||
-    datos.solicitudesAcceso.some((s) => s.estado !== "Rechazada" && s.usuario.toLowerCase() === minuscula)
-  ) {
-    return error("Ese nombre de usuario ya está en uso. Elige otro.", 409);
-  }
-  if (datos.solicitudesAcceso.some((s) => s.estado === "Pendiente" && normalizar(s.correo) === normalizar(campos.correo))) {
-    return error("Ya tienes una solicitud pendiente con ese correo.", 409);
-  }
-
-  const solicitudes = datos.solicitudesAcceso;
-  const nueva = {
-    id: solicitudes.length ? Math.max(...solicitudes.map((s) => s.id)) + 1 : 1,
-    ...campos,
-    codigo: textoAleatorio(6),
-    fecha: new Date().toISOString(),
-    estado: "Pendiente",
-    comentarios: [],
-    credenciales: null,
-  };
-  solicitudes.push(nueva);
-  registrarNotificacion(datos, "solicitud", nueva.usuario, `${nombreCompleto(nueva)} envió una solicitud de acceso.`);
-  return { ok: true, solicitud: nueva };
 }
 
-// Solicitudes de ejemplo con su correo y código, para mostrar cómo funciona "Estado de solicitud".
-export function ejemplosConsulta(datos) {
-  return datos.solicitudesAcceso
-    .filter((s) => s.demo)
-    .map((s) => ({ id: s.id, nombre: nombreCompleto(s), correo: s.correo, codigo: s.codigo, estado: s.estado }));
+function invitacionPublica(invitacion) {
+  const publica = { ...invitacion };
+  delete publica.tokenHash;
+  return publica;
 }
 
-// Devuelve la solicitud solo si el correo y el código coinciden.
-export function consultarSolicitud(datos, correo, codigo) {
-  const correoBuscado = normalizar(correo);
-  const codigoBuscado = texto(codigo).toUpperCase();
-  if (!correoBuscado || !codigoBuscado) {
-    return null;
+export function crearInvitacion(datos, entrada, creador) {
+  const validacion = camposInvitacion(entrada);
+  if (!validacion.ok) return validacion;
+  const campos = validacion.campos;
+  const usuario = normalizar(campos.usuario);
+  const correo = normalizar(campos.correo);
+  datos.invitaciones ??= [];
+
+  if (buscarUsuario(datos, campos.usuario) || datos.usuarios.some((item) => normalizar(item.correo) === correo)) {
+    return error("Ya existe una cuenta con ese usuario o correo.", 409);
   }
-  return (
-    datos.solicitudesAcceso.find(
-      (s) => normalizar(s.correo) === correoBuscado && s.codigo.toUpperCase() === codigoBuscado,
-    ) ?? null
+
+  const ahora = Date.now();
+  const pendientes = datos.invitaciones.filter(
+    (anterior) => !anterior.usadaEn && !anterior.revocadaEn && new Date(anterior.expira).getTime() > ahora,
   );
-}
-
-export function cambiarEstadoAcceso(datos, id, nuevoEstado, autor) {
-  const solicitud = datos.solicitudesAcceso.find((s) => s.id === id);
-  if (!solicitud) {
-    return error("La solicitud no existe.", 404);
-  }
-  if (!ESTADOS_ACCESO.includes(nuevoEstado)) {
-    return error("Estado no válido.");
-  }
-  if (solicitud.estado === nuevoEstado) {
-    return { ok: true };
-  }
-
-  let usuarioEliminado = null;
-
-  if (nuevoEstado === "Aceptada") {
-    if (buscarUsuario(datos, solicitud.usuario)) {
-      return error(`El usuario ${solicitud.usuario} ya existe en el sistema.`, 409);
-    }
-    const clave = textoAleatorio(8);
-    solicitud.credenciales = { usuario: solicitud.usuario, clave };
-    datos.usuarios.push({
-      usuario: solicitud.usuario,
-      claveHash: hashClave(clave),
-      rol: "Usuario",
-      permisos: { ...TODOS_LOS_PERMISOS },
-      nombre: nombreCompleto(solicitud),
-      correo: solicitud.correo,
-      telefono: solicitud.telefono ?? "",
-      rut: solicitud.rut ?? "",
-      solicitudId: solicitud.id,
-      creado: new Date().toISOString(),
-    });
-  } else if (solicitud.estado === "Aceptada") {
-    // Quita la cuenta creada por una solicitud que deja de estar aceptada.
-    usuarioEliminado = datos.usuarios.find((u) => u.solicitudId === solicitud.id)?.usuario ?? null;
-    datos.usuarios = datos.usuarios.filter((u) => u.solicitudId !== solicitud.id);
-    solicitud.credenciales = null;
-  }
-
-  solicitud.estado = nuevoEstado;
-  solicitud.comentarios.push({
-    autor,
-    texto: `Estado cambiado a ${nuevoEstado}.`,
-    fecha: new Date().toISOString(),
-    sistema: true,
+  const conflicto = pendientes.some((anterior) => {
+    const mismoUsuario = normalizar(anterior.usuario) === usuario;
+    const mismoCorreo = normalizar(anterior.correo) === correo;
+    return (mismoUsuario || mismoCorreo) && !(mismoUsuario && mismoCorreo);
   });
-  registrarNotificacion(datos, "solicitud", solicitud.usuario, `La solicitud de ${nombreCompleto(solicitud)} pasó a ${nuevoEstado}.`);
-  return { ok: true, usuarioEliminado };
+  if (conflicto) return error("Ya hay una invitación pendiente con ese usuario o correo.", 409);
+  for (const anterior of pendientes) {
+    if (normalizar(anterior.usuario) === usuario && normalizar(anterior.correo) === correo) {
+      anterior.revocadaEn = new Date(ahora).toISOString();
+    }
+  }
+
+  const token = tokenSesion();
+  const invitacion = {
+    id: datos.invitaciones.length ? Math.max(...datos.invitaciones.map((item) => item.id)) + 1 : 1,
+    ...campos,
+    tokenHash: hashToken(token),
+    creada: new Date(ahora).toISOString(),
+    expira: new Date(ahora + DURACION_INVITACION).toISOString(),
+    creadaPor: creador,
+    usadaEn: null,
+    revocadaEn: null,
+  };
+  datos.invitaciones.push(invitacion);
+  registrarNotificacion(datos, "invitacion", invitacion.usuario, `${creador} invitó a ${invitacion.nombre} al sistema.`);
+  return { ok: true, invitacion: invitacionPublica(invitacion), token };
 }
 
-export function agregarComentarioAcceso(datos, id, textoComentario, autor) {
-  const limpio = texto(textoComentario);
-  if (!limpio) {
-    return error("Escribe un comentario.");
+export function leerInvitaciones(datos) {
+  return [...(datos.invitaciones ?? [])]
+    .sort((a, b) => b.creada.localeCompare(a.creada))
+    .map(invitacionPublica);
+}
+
+function buscarInvitacion(datos, token) {
+  if (typeof token !== "string" || !/^[a-f0-9]{64}$/.test(token)) return null;
+  const hash = hashToken(token);
+  return (datos.invitaciones ?? []).find((item) => item.tokenHash === hash) ?? null;
+}
+
+function estadoInvitacion(invitacion) {
+  if (invitacion.usadaEn) return "usada";
+  if (invitacion.revocadaEn) return "revocada";
+  if (new Date(invitacion.expira).getTime() <= Date.now()) return "vencida";
+  return "pendiente";
+}
+
+export function consultarInvitacion(datos, token) {
+  const invitacion = buscarInvitacion(datos, token);
+  if (!invitacion) return error("La invitación no existe o ya no es válida.", 404);
+  if (estadoInvitacion(invitacion) !== "pendiente") return error("La invitación ya fue usada, revocada o venció.", 410);
+  return {
+    ok: true,
+    invitacion: {
+      nombre: invitacion.nombre,
+      usuario: invitacion.usuario,
+      rol: invitacion.rol,
+      expira: invitacion.expira,
+    },
+  };
+}
+
+export function aceptarInvitacion(datos, token, clave) {
+  const invitacion = buscarInvitacion(datos, token);
+  if (!invitacion) return error("La invitación no existe o ya no es válida.", 404);
+  if (estadoInvitacion(invitacion) !== "pendiente") return error("La invitación ya fue usada, revocada o venció.", 410);
+  if (typeof clave !== "string" || clave.length < LARGO_MINIMO_CLAVE || clave.length > 128) {
+    return error(`La contraseña debe tener entre ${LARGO_MINIMO_CLAVE} y 128 caracteres.`);
   }
-  if (limpio.length > 2000) {
-    return error("El comentario es demasiado largo.");
-  }
-  const solicitud = datos.solicitudesAcceso.find((s) => s.id === id);
-  if (!solicitud) {
-    return error("La solicitud no existe.", 404);
-  }
-  solicitud.comentarios.push({ autor, texto: limpio, fecha: new Date().toISOString() });
+  if (buscarUsuario(datos, invitacion.usuario)) return error("El usuario ya tiene una cuenta.", 409);
+
+  const ahora = new Date().toISOString();
+  const usuario = {
+    usuario: invitacion.usuario,
+    claveHash: hashClave(clave),
+    rol: invitacion.rol,
+    permisos: { ...invitacion.permisos },
+    nombre: invitacion.nombre,
+    correo: invitacion.correo,
+    invitacionId: invitacion.id,
+    creado: ahora,
+  };
+  datos.usuarios.push(usuario);
+  invitacion.usadaEn = ahora;
+  registrarNotificacion(datos, "invitacion", usuario.usuario, `${usuario.nombre} completó una invitación.`);
+  return { ok: true, usuario: usuarioPublico(usuario) };
+}
+
+export function revocarInvitacion(datos, id) {
+  const invitacion = (datos.invitaciones ?? []).find((item) => item.id === id);
+  if (!invitacion) return error("La invitación no existe.", 404);
+  if (estadoInvitacion(invitacion) !== "pendiente") return error("Solo se pueden revocar invitaciones pendientes.", 409);
+  invitacion.revocadaEn = new Date().toISOString();
   return { ok: true };
 }
 
@@ -324,7 +327,9 @@ export function registrarNotificacion(datos, tipo, usuario, textoNotificacion) {
 }
 
 export function leerNotificaciones(datos) {
-  return [...datos.notificaciones].sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+  return [...(datos.notificaciones ?? [])]
+    .filter((notificacion) => notificacion.tipo !== "solicitud")
+    .sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
 }
 
 // ---------- Candidatos y solicitudes de evaluación ----------

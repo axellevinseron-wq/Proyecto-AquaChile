@@ -2037,6 +2037,148 @@ a.sidebar-link {
   }
 }
 
+/* ---------- Configuración de acceso por invitación ---------- */
+.invitacion-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(ellipse at 82% 18%, rgb(91 171 142 / 24%), transparent 34%),
+    linear-gradient(135deg, #123b50, #1d645c);
+}
+
+.invitacion-card {
+  width: min(100%, 480px);
+  padding: clamp(24px, 6vw, 42px);
+  border: 1px solid rgb(255 255 255 / 55%);
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 18px 55px rgb(3 23 30 / 24%);
+}
+
+.invitacion-marca {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 30px;
+  color: #123b50;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.invitacion-marca span {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px 10px 10px 3px;
+  color: #fff;
+  background: #25866b;
+}
+
+.invitacion-etiqueta {
+  display: block;
+  margin-bottom: 8px;
+  color: #25866b;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.invitacion-card h1 {
+  margin-bottom: 10px;
+  color: #123b50;
+  font-size: clamp(1.65rem, 5vw, 2rem);
+  font-weight: 750;
+}
+
+.invitacion-card p {
+  color: #607178;
+  line-height: 1.6;
+}
+
+.invitacion-expira {
+  padding: 9px 11px;
+  border-radius: 7px;
+  background: #f2f5f4;
+  font-size: 0.82rem;
+}
+
+.invitacion-card form label {
+  display: block;
+  margin-top: 16px;
+  color: #344b52;
+  font-size: 0.88rem;
+  font-weight: 650;
+}
+
+.invitacion-card form input {
+  width: 100%;
+  margin-top: 6px;
+  padding: 11px 12px;
+  border: 1px solid #d9e3df;
+  border-radius: 7px;
+  font: inherit;
+}
+
+.invitacion-card form input:focus {
+  border-color: #25866b;
+  outline: 3px solid rgb(37 134 107 / 14%);
+}
+
+.invitacion-card form small {
+  display: block;
+  margin-top: 5px;
+  color: #78878c;
+}
+
+.invitacion-boton {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  margin-top: 20px;
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 7px;
+  color: #fff;
+  background: #25866b;
+  font-weight: 700;
+  text-align: center;
+  text-decoration: none;
+}
+
+.invitacion-boton:hover,
+.invitacion-boton:focus-visible {
+  color: #fff;
+  background: #1d7059;
+}
+
+.invitacion-boton--secundario {
+  color: #123b50;
+  background: #e9f1ee;
+}
+
+.invitacion-boton--secundario:hover,
+.invitacion-boton--secundario:focus-visible {
+  color: #123b50;
+  background: #dceae4;
+}
+
+.invitacion-boton:disabled {
+  opacity: 0.65;
+}
+
+.invitacion-error {
+  padding: 10px 12px;
+  border-radius: 7px;
+  color: #842029 !important;
+  background: #f8d7da;
+  font-size: 0.9rem;
+}
+
 .pub-cuerpo {
   /* El fondo viene de la regla compartida con .login-page */
   display: grid;

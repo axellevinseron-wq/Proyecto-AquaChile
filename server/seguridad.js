@@ -1,6 +1,6 @@
 // Contraseñas con hash (scrypt, incluido en Node: no necesita paquetes extra) y textos aleatorios.
 
-import { randomBytes, randomInt, scryptSync, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes, randomInt, scryptSync, timingSafeEqual } from "node:crypto";
 
 export function hashClave(clave) {
   const sal = randomBytes(16).toString("hex");
@@ -27,4 +27,8 @@ export function textoAleatorio(largo) {
 
 export function tokenSesion() {
   return randomBytes(32).toString("hex");
+}
+
+export function hashToken(token) {
+  return createHash("sha256").update(token).digest("hex");
 }

@@ -112,11 +112,10 @@ describe("Candidatos: formulario y búsqueda", () => {
 });
 
 describe("Login sin crear cuenta", () => {
-  it("en /acceso enlaza a las ofertas y a las páginas de solicitudes", () => {
+  it("en /acceso solo enlaza a las ofertas y redirige el formulario público antiguo", () => {
     mostrarApp("/acceso");
     expect(screen.queryByText("Crear cuenta")).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Enviar una solicitud de acceso" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Ver el estado de mi solicitud" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /solicitud de acceso/i })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Ver ofertas de trabajo" })).toHaveAttribute("href", "/");
   });
 
@@ -128,68 +127,12 @@ describe("Login sin crear cuenta", () => {
   });
 });
 
-describe("Página pública de solicitudes", () => {
-  it("se abre sin iniciar sesión", () => {
+describe("Invitaciones", () => {
+  it("redirige la ruta de solicitud anterior y rechaza enlaces de invitación inválidos", async () => {
     mostrarApp("/solicitud");
-    expect(screen.getByRole("heading", { name: "Solicitar acceso" })).toBeInTheDocument();
-  });
-
-  it("envía una solicitud, muestra la notificación y pasa a la página de estado", async () => {
-    const usuario = userEvent.setup();
-    mostrarApp("/solicitud");
-    await usuario.type(screen.getByLabelText("Nombre"), "Ana");
-    await usuario.type(screen.getByLabelText("Apellido"), "Prueba");
-    await usuario.type(screen.getByLabelText("RUT"), "12.345.678-5");
-    await usuario.type(screen.getByLabelText("Teléfono"), "+56 9 1234 5678");
-    await usuario.type(screen.getByLabelText("Correo"), "ana@example.test");
-    await usuario.type(screen.getByLabelText("Usuario que quieres usar"), "aprueba");
-    await usuario.type(screen.getByLabelText("Motivo de la solicitud"), "Necesito acceso");
-    await usuario.click(screen.getByRole("button", { name: "Enviar mi solicitud" }));
-
-    expect(await screen.findByText(/Solicitud enviada correctamente/)).toBeInTheDocument();
-    expect(await screen.findByRole("heading", { name: "Estado de solicitud" })).toBeInTheDocument();
-  });
-
-  it("pide un RUT válido antes de enviar la solicitud", async () => {
-    const usuario = userEvent.setup();
-    mostrarApp("/solicitud");
-    await usuario.type(screen.getByLabelText("Nombre"), "Ana");
-    await usuario.type(screen.getByLabelText("Apellido"), "Prueba");
-    await usuario.type(screen.getByLabelText("RUT"), "12.345.678-9");
-    await usuario.type(screen.getByLabelText("Teléfono"), "+56 9 1234 5678");
-    await usuario.type(screen.getByLabelText("Correo"), "ana@example.test");
-    await usuario.type(screen.getByLabelText("Usuario que quieres usar"), "aprueba");
-    await usuario.type(screen.getByLabelText("Motivo de la solicitud"), "Necesito acceso");
-    await usuario.click(screen.getByRole("button", { name: "Enviar mi solicitud" }));
-    expect(screen.getByRole("alert")).toHaveTextContent("RUT válido");
-  });
-
-  it("rechaza un código incorrecto", async () => {
-    const usuario = userEvent.setup();
-    mostrarApp("/solicitud?tab=estado");
-    await usuario.type(screen.getByLabelText("Correo"), "felipe.nunez@example.test");
-    await usuario.type(screen.getByLabelText("Código"), "XXXXXX");
-    await usuario.click(screen.getByRole("button", { name: "Ver estado" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("no coinciden");
-  });
-
-  it("las solicitudes de ejemplo se pueden consultar con un clic", async () => {
-    const usuario = userEvent.setup();
-    mostrarApp("/solicitud?tab=estado");
-    await usuario.click(await screen.findByText("Solicitudes de ejemplo para probar"));
-    await usuario.click(screen.getByRole("button", { name: "Consultar solicitud de Camila Fuentes" }));
-    expect(await screen.findByText("Solicitud de Camila Fuentes")).toBeInTheDocument();
-    expect(screen.getByText("K7M3QX9P")).toBeInTheDocument();
-  });
-
-  it("con el código correcto muestra el estado de la solicitud", async () => {
-    const usuario = userEvent.setup();
-    mostrarApp("/solicitud?tab=estado");
-    await usuario.type(screen.getByLabelText("Correo"), "felipe.nunez@example.test");
-    await usuario.type(screen.getByLabelText("Código"), "fel358");
-    await usuario.click(screen.getByRole("button", { name: "Ver estado" }));
-    const titulo = await screen.findByText("Solicitud de Felipe Núñez");
-    expect(titulo.parentElement).toHaveTextContent("Pendiente");
+    expect(await screen.findByRole("heading", { name: "Iniciar sesión" })).toBeInTheDocument();
+    mostrarApp(`/invitacion/${"0".repeat(64)}`);
+    expect(await screen.findByRole("heading", { name: "Invitación no disponible" })).toBeInTheDocument();
   });
 });
 
@@ -219,15 +162,18 @@ describe("Portal público de empleos", () => {
 });
 
 describe("Administración", () => {
-  it("el admin acepta una solicitud y el solicitante ve sus credenciales", async () => {
+  it("el administrador puede crear una invitación y obtener el enlace", async () => {
     const usuario = userEvent.setup();
-    mostrarApp("/cuentas");
+    mostrarApp("/usuarios");
     await iniciarSesion(usuario);
 
-    await usuario.click(
-      await screen.findByRole("button", { name: "Marcar solicitud de fnunez como Aceptada" }),
-    );
-    expect(await screen.findByText(/marcada como aceptada/)).toBeInTheDocument();
+    await usuario.click(await screen.findByRole("button", { name: "Invitar usuario" }));
+    await usuario.type(screen.getByLabelText("Nombre de usuario"), "aprueba");
+    await usuario.type(screen.getByLabelText("Nombre completo"), "Ana Prueba");
+    await usuario.type(screen.getByLabelText("Correo de invitación"), "ana@example.test");
+    await usuario.click(screen.getByRole("button", { name: "Crear invitación" }));
+    expect(await screen.findByText(/El correo no está configurado/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Enlace de invitación/).value).toMatch(/\/invitacion\/[a-f0-9]{64}$/);
   });
 
   it("el admin ve la lista de usuarios y abre un perfil", async () => {

@@ -14,6 +14,7 @@ import {
 import { useDatosAcceso } from "../useDatosAcceso";
 import { useReloj } from "../usePresencia";
 import { descargarPdf } from "../pdf";
+import InvitacionesPanel from "./InvitacionesPanel";
 
 function formatearFecha(iso) {
   return iso ? new Date(iso).toLocaleString("es-CL", { dateStyle: "medium", timeStyle: "short" }) : "—";
@@ -47,6 +48,7 @@ function EstadoBadge({ estado }) {
 
 const ICONO_NOTIFICACION = {
   sesion: "user",
+  invitacion: "mail",
   solicitud: "mail",
   permisos: "usuarios",
   perfil: "user",
@@ -407,6 +409,8 @@ function UsuariosPanel({ usuarioActual }) {
       <p className="text-secondary small mb-3">
         Revisa el perfil de cada usuario y decide a qué secciones del sistema puede entrar.
       </p>
+
+      <InvitacionesPanel />
 
       <div className="row g-3">
         <div className="col-12 col-lg-7">

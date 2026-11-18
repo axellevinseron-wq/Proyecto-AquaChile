@@ -7,7 +7,6 @@ import { fijarToken, pedir } from "./api";
 
 export const AVISO_CAMBIO = "vcm-datos-cambiaron";
 
-export const ESTADOS_ACCESO = ["Pendiente", "Aceptada", "Rechazada"];
 export const ROLES = ["Administrador", "Usuario"];
 
 // Secciones del sistema que se pueden permitir o quitar a cada usuario.
@@ -20,7 +19,7 @@ export const PERMISOS = [
 const TODOS_LOS_PERMISOS = Object.fromEntries(PERMISOS.map((p) => [p.id, true]));
 
 function copiaVacia() {
-  return { usuarios: [], conexiones: [], notificaciones: [], solicitudesAcceso: [] };
+  return { usuarios: [], conexiones: [], notificaciones: [], invitaciones: [] };
 }
 
 let copia = copiaVacia();
@@ -35,11 +34,6 @@ export function reiniciarDatos() {
   fijarToken(null);
   copia = copiaVacia();
   ultimaHuella = "";
-}
-
-// Nombre y apellido juntos (las solicitudes antiguas pueden no tener apellido).
-export function nombreCompleto(persona) {
-  return `${persona?.nombre ?? ""} ${persona?.apellido ?? ""}`.trim();
 }
 
 function mensajeDe(respuesta) {
@@ -73,12 +67,11 @@ async function modificar(metodo, ruta, cuerpo) {
 
 // ---------- Sesión ----------
 
-// Devuelve { ok: true, sesion } o { ok: false, error, pendiente }.
-// "pendiente" indica que ese usuario tiene una solicitud de cuenta esperando aprobación.
+// Devuelve { ok: true, sesion } o { ok: false, error }.
 export async function iniciarSesion(usuario, clave) {
   const respuesta = await pedir("POST", "/sesion", { usuario, clave });
   if (!respuesta.ok) {
-    return { ok: false, error: mensajeDe(respuesta), pendiente: respuesta.datos?.pendiente === true };
+    return { ok: false, error: mensajeDe(respuesta) };
   }
   fijarToken(respuesta.datos.token);
   await refrescarDatos();
@@ -125,43 +118,37 @@ export function actualizarPerfil(nombreUsuario, { nombre, correo, telefono, rut,
   });
 }
 
-// ---------- Solicitudes de acceso ----------
+// ---------- Invitaciones ----------
 
-// Solo los administradores reciben la lista completa.
-export function leerSolicitudesAcceso() {
-  return copia.solicitudesAcceso;
+export function obtenerInvitaciones() {
+  return copia.invitaciones;
 }
 
-// Pública (no necesita sesión). Devuelve { ok: true, solicitud } o { ok: false, error }.
-export async function crearSolicitudAcceso(datos) {
-  const respuesta = await pedir("POST", "/accesos", datos);
+export async function crearInvitacion(datos) {
+  const respuesta = await pedir("POST", "/admin/invitaciones", datos);
+  if (!respuesta.ok) {
+    return { ok: false, error: mensajeDe(respuesta) };
+  }
+  await refrescarDatos();
+  return { ok: true, ...respuesta.datos };
+}
+
+export function revocarInvitacion(id) {
+  return modificar("POST", `/admin/invitaciones/${id}/revocar`, {});
+}
+
+export async function consultarInvitacion(token) {
+  const respuesta = await pedir("GET", `/invitaciones/${encodeURIComponent(token)}`);
   return respuesta.ok
-    ? { ok: true, solicitud: respuesta.datos.solicitud }
+    ? { ok: true, invitacion: respuesta.datos.invitacion }
     : { ok: false, error: mensajeDe(respuesta) };
 }
 
-// Solicitudes de ejemplo con su correo y código, para mostrar cómo funciona "Estado de solicitud".
-export async function ejemplosConsulta() {
-  const respuesta = await pedir("GET", "/accesos/ejemplos");
-  return respuesta.ok ? respuesta.datos.ejemplos : [];
-}
-
-// Devuelve la solicitud solo si el correo y el código coinciden; si no, null.
-export async function consultarSolicitud(correo, codigo) {
-  if (!(correo ?? "").trim() || !(codigo ?? "").trim()) {
-    return null;
-  }
-  const respuesta = await pedir("POST", "/accesos/consulta", { correo, codigo });
-  return respuesta.ok ? respuesta.datos.solicitud : null;
-}
-
-// El autor del cambio lo toma el servidor de la sesión: no se envía desde aquí.
-export function cambiarEstadoAcceso(id, nuevoEstado) {
-  return modificar("POST", `/accesos/${id}/estado`, { estado: nuevoEstado });
-}
-
-export function agregarComentarioAcceso(id, texto) {
-  return modificar("POST", `/accesos/${id}/comentarios`, { texto });
+export async function aceptarInvitacion(token, clave) {
+  const respuesta = await pedir("POST", `/invitaciones/${encodeURIComponent(token)}/aceptar`, { clave });
+  return respuesta.ok
+    ? { ok: true }
+    : { ok: false, error: mensajeDe(respuesta) };
 }
 
 // ---------- Conexión de los usuarios ----------

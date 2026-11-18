@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import Icon from "./Icon";
-import { leerSolicitudesAcceso, obtenerUsuarios } from "../auth";
+import { obtenerUsuarios } from "../auth";
 import { useDatosAcceso } from "../useDatosAcceso";
 
 // Candidatos y solicitudes son una sola opción; dentro de la página un botón cambia entre ambas.
@@ -25,11 +25,6 @@ function Sidebar({ sesion, onNavegar, onCerrarSesion, onVerPerfil }) {
       const destino = enlace.permisos.find((permiso) => sesion.permisos?.[permiso] !== false);
       return { ...enlace, destino };
     });
-  const pendientes = useMemo(
-    () => (esAdmin ? leerSolicitudesAcceso().filter((s) => s.estado === "Pendiente").length : 0),
-    [esAdmin, version],
-  );
-
   return (
     <aside id="menu-lateral" className="main-sidebar" aria-label="Menú lateral">
       <button
@@ -123,21 +118,6 @@ function Sidebar({ sesion, onNavegar, onCerrarSesion, onVerPerfil }) {
               >
                 <Icon nombre="usuarios" size={15} />
                 <span className="flex-grow-1 text-start">Postulaciones</span>
-              </NavLink>
-            </li>
-            <li>
-              <NavLink
-                to="/cuentas"
-                className={({ isActive }) => `sidebar-link ${isActive ? "activo" : ""}`}
-                onClick={onNavegar}
-              >
-                <Icon nombre="mail" size={15} />
-                <span className="flex-grow-1 text-start">Solicitudes de acceso</span>
-                {pendientes > 0 && (
-                  <span className="badge text-bg-warning" aria-label={`${pendientes} pendientes`}>
-                    {pendientes}
-                  </span>
-                )}
               </NavLink>
             </li>
             <li>

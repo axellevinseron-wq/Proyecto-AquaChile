@@ -2,25 +2,32 @@
 import { beforeEach, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { crearAlmacen } from "../almacen.js";
-import { claveCoincide, hashClave } from "../seguridad.js";
+import { claveCoincide, hashClave, hashToken } from "../seguridad.js";
 import {
+  aceptarInvitacion,
   actualizarPerfil,
   actualizarUsuario,
-  agregarComentarioAcceso,
-  cambiarEstadoAcceso,
-  consultarSolicitud,
-  crearSolicitudAcceso,
+  consultarInvitacion,
+  crearInvitacion,
   iniciarSesion,
+  leerInvitaciones,
   leerNotificaciones,
   marcarConexion,
   marcarDesconexion,
   obtenerConexiones,
   permisosDe,
   reemplazarColeccion,
+  revocarInvitacion,
   usuarioPublico,
 } from "../dominio.js";
 
-const entrada = { nombre: "Ana Prueba", correo: "ana@example.test", usuario: "aprueba", motivo: "Necesito acceso" };
+const entrada = {
+  nombre: "Ana Prueba",
+  correo: "ana@example.test",
+  usuario: "aprueba",
+  rol: "Usuario",
+  permisos: { indicadores: true },
+};
 
 let datos;
 beforeEach(() => {
@@ -51,66 +58,39 @@ describe("Inicio de sesión", () => {
   });
 });
 
-describe("Solicitudes de acceso", () => {
-  it("crea la solicitud con su código de seguimiento", () => {
-    const resultado = crearSolicitudAcceso(datos, entrada);
+describe("Invitaciones", () => {
+  it("crea una invitación con permisos mínimos y permite configurar la contraseña una sola vez", () => {
+    const resultado = crearInvitacion(datos, entrada, "admin");
     assert.equal(resultado.ok, true);
-    assert.match(resultado.solicitud.codigo, /^[A-Z0-9]{6}$/);
-    assert.equal(resultado.solicitud.estado, "Pendiente");
+    assert.equal("tokenHash" in resultado.invitacion, false);
+    assert.equal(datos.invitaciones[0].tokenHash, hashToken(resultado.token));
+    assert.equal("token" in datos.invitaciones[0], false);
+    assert.equal(consultarInvitacion(datos, resultado.token).invitacion.usuario, "aprueba");
+
+    const clave = "una-clave-segura-123";
+    assert.equal(aceptarInvitacion(datos, resultado.token, "corta").ok, false);
+    const aceptada = aceptarInvitacion(datos, resultado.token, clave);
+    assert.equal(aceptada.ok, true);
+    assert.deepEqual(aceptada.usuario.permisos, { indicadores: true, candidatos: false, solicitudes: false });
+    assert.equal(iniciarSesion(datos, "aprueba", clave)?.rol, "Usuario");
+    assert.equal(consultarInvitacion(datos, resultado.token).status, 410);
+    assert.equal(aceptarInvitacion(datos, resultado.token, clave).status, 410);
   });
 
-  it("rechaza datos incompletos o inválidos", () => {
-    assert.equal(crearSolicitudAcceso(datos, { ...entrada, motivo: "  " }).ok, false);
-    assert.equal(crearSolicitudAcceso(datos, { ...entrada, correo: "no-es-correo" }).ok, false);
-    assert.equal(crearSolicitudAcceso(datos, { ...entrada, rut: "11.111.111-2" }).ok, false);
-    assert.equal(crearSolicitudAcceso(datos, { ...entrada, usuario: "con espacio" }).ok, false);
-    assert.equal(crearSolicitudAcceso(datos, null).ok, false);
+  it("valida duplicados y permite revocar invitaciones", () => {
+    const creada = crearInvitacion(datos, entrada, "admin");
+    assert.equal(crearInvitacion(datos, { ...entrada, usuario: "otro" }, "admin").status, 409);
+    assert.equal(crearInvitacion(datos, { ...entrada, correo: "otro@example.test" }, "admin").status, 409);
+    assert.equal(revocarInvitacion(datos, creada.invitacion.id).ok, true);
+    assert.equal(consultarInvitacion(datos, creada.token).status, 410);
+    assert.equal(leerInvitaciones(datos)[0].tokenHash, undefined);
   });
 
-  it("rechaza un usuario que ya existe y un correo con solicitud pendiente", () => {
-    assert.equal(crearSolicitudAcceso(datos, { ...entrada, usuario: "admin" }).ok, false);
-    assert.equal(crearSolicitudAcceso(datos, entrada).ok, true);
-    assert.equal(crearSolicitudAcceso(datos, { ...entrada, usuario: "otro" }).ok, false);
-  });
-
-  it("solo muestra la solicitud con el correo y el código correctos", () => {
-    const { solicitud } = crearSolicitudAcceso(datos, entrada);
-    assert.equal(consultarSolicitud(datos, entrada.correo, solicitud.codigo.toLowerCase())?.id, solicitud.id);
-    assert.equal(consultarSolicitud(datos, entrada.correo, "ZZZZZZ"), null);
-    assert.equal(consultarSolicitud(datos, "otro@example.test", solicitud.codigo), null);
-    assert.equal(consultarSolicitud(datos, "", ""), null);
-  });
-
-  it("al aceptar crea la cuenta y entrega las credenciales; al revertir la quita", () => {
-    const { solicitud } = crearSolicitudAcceso(datos, entrada);
-    assert.equal(cambiarEstadoAcceso(datos, solicitud.id, "Aceptada", "admin").ok, true);
-
-    const aceptada = consultarSolicitud(datos, entrada.correo, solicitud.codigo);
-    assert.equal(aceptada.estado, "Aceptada");
-    assert.equal(aceptada.credenciales.usuario, "aprueba");
-    assert.equal(iniciarSesion(datos, "aprueba", aceptada.credenciales.clave)?.rol, "Usuario");
-
-    const resultado = cambiarEstadoAcceso(datos, solicitud.id, "Rechazada", "admin");
-    assert.equal(resultado.usuarioEliminado, "aprueba");
-    assert.equal(datos.usuarios.some((u) => u.usuario === "aprueba"), false);
-    assert.equal(consultarSolicitud(datos, entrada.correo, solicitud.codigo).credenciales, null);
-  });
-
-  it("guarda comentarios y registra los cambios de estado", () => {
-    const { solicitud } = crearSolicitudAcceso(datos, entrada);
-    assert.equal(agregarComentarioAcceso(datos, solicitud.id, "   ", "admin").ok, false);
-    agregarComentarioAcceso(datos, solicitud.id, "Falta tu cargo", "admin");
-    cambiarEstadoAcceso(datos, solicitud.id, "Rechazada", "admin");
-
-    const guardada = datos.solicitudesAcceso.find((s) => s.id === solicitud.id);
-    assert.ok(guardada.comentarios.map((c) => c.texto).includes("Falta tu cargo"));
-    assert.equal(guardada.estado, "Rechazada");
-  });
-
-  it("no acepta un estado inventado ni una solicitud que no existe", () => {
-    const { solicitud } = crearSolicitudAcceso(datos, entrada);
-    assert.equal(cambiarEstadoAcceso(datos, solicitud.id, "Inventado", "admin").ok, false);
-    assert.equal(cambiarEstadoAcceso(datos, 9999, "Aceptada", "admin").status, 404);
+  it("rechaza invitaciones inválidas o vencidas", () => {
+    assert.equal(crearInvitacion(datos, { ...entrada, correo: "malo" }, "admin").ok, false);
+    const creada = crearInvitacion(datos, entrada, "admin");
+    datos.invitaciones[0].expira = new Date(Date.now() - 1).toISOString();
+    assert.equal(consultarInvitacion(datos, creada.token).status, 410);
   });
 });
 
@@ -140,6 +120,12 @@ describe("Usuarios y permisos", () => {
 });
 
 describe("Conexión y notificaciones", () => {
+  it("omite notificaciones antiguas de solicitudes sin borrar su registro", () => {
+    datos.notificaciones.push({ id: "legacy", tipo: "solicitud", texto: "Solicitud anterior", fecha: new Date().toISOString() });
+    assert.equal(leerNotificaciones(datos).some((item) => item.id === "legacy"), false);
+    assert.equal(datos.notificaciones.some((item) => item.id === "legacy"), true);
+  });
+
   it("marcarConexion y marcarDesconexion cambian el estado en la lista", () => {
     marcarConexion(datos, "admin");
     assert.equal(obtenerConexiones(datos).find((c) => c.usuario === "admin").conectado, true);
@@ -147,11 +133,11 @@ describe("Conexión y notificaciones", () => {
     assert.equal(obtenerConexiones(datos).find((c) => c.usuario === "admin").conectado, false);
   });
 
-  it("registran sesiones y solicitudes, las más nuevas primero", () => {
+  it("registran sesiones e invitaciones, las más nuevas primero", () => {
     marcarConexion(datos, "admin");
-    crearSolicitudAcceso(datos, entrada);
+    crearInvitacion(datos, entrada, "admin");
     const textos = leerNotificaciones(datos).map((n) => n.texto);
-    assert.equal(textos[0], "Ana Prueba envió una solicitud de acceso.");
+    assert.equal(textos[0], "admin invitó a Ana Prueba al sistema.");
     assert.ok(textos.includes("admin inició sesión."));
   });
 });

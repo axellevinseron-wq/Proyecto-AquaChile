@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   avisarDesconexion,
-  crearSolicitudAcceso,
+  crearInvitacion,
   estadoConexion,
   iniciarSesion,
   leerNotificaciones,
@@ -47,12 +47,18 @@ describe("Estado de conexión", () => {
 });
 
 describe("Notificaciones", () => {
-  it("registran sesiones y solicitudes, las más nuevas primero", async () => {
+  it("registran sesiones e invitaciones, las más nuevas primero", async () => {
     await iniciarSesion("admin", "admin123");
-    await crearSolicitudAcceso({ nombre: "Ana Prueba", correo: "ana@example.test", usuario: "aprueba", motivo: "Acceso" });
+    await crearInvitacion({
+      nombre: "Ana Prueba",
+      correo: "ana@example.test",
+      usuario: "aprueba",
+      rol: "Usuario",
+      permisos: {},
+    });
     await refrescarDatos();
     const textos = leerNotificaciones().map((n) => n.texto);
-    expect(textos[0]).toBe("Ana Prueba envió una solicitud de acceso.");
+    expect(textos[0]).toBe("admin invitó a Ana Prueba al sistema.");
     expect(textos).toContain("admin inició sesión.");
   });
 });

@@ -18,7 +18,7 @@ window.matchMedia = vi.fn().mockImplementation((consulta) => ({
 let servidor;
 
 beforeEach(async () => {
-  servidor = crearApp().listen(0, "127.0.0.1");
+  servidor = crearApp({ clienteCorreo: null }).listen(0, "127.0.0.1");
   await new Promise((resolver) => servidor.once("listening", resolver));
   configurarApi({ url: `http://127.0.0.1:${servidor.address().port}` });
   reiniciarDatos();

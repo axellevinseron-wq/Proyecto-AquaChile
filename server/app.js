@@ -8,19 +8,18 @@ import { crearAlmacen } from "./almacen.js";
 import { crearSesiones } from "./sesiones.js";
 import { crearAutenticacion, crearLimitador, demasiadosIntentos, manejarErrores, rutaNoEncontrada } from "./middleware.js";
 import {
+  aceptarInvitacion,
   actualizarPerfil,
   actualizarUsuario,
-  agregarComentarioAcceso,
   actualizarEstadoPostulacion,
   actualizarOferta,
-  cambiarEstadoAcceso,
   COLECCIONES,
-  consultarSolicitud,
+  consultarInvitacion,
   crearOferta,
+  crearInvitacion,
   crearPostulacion,
-  crearSolicitudAcceso,
-  ejemplosConsulta,
   iniciarSesion,
+  leerInvitaciones,
   leerNotificaciones,
   marcarConexion,
   marcarDesconexion,
@@ -28,8 +27,8 @@ import {
   ofertaVigente,
   reemplazarColeccion,
   registrarLatido,
+  revocarInvitacion,
   sesionDe,
-  tieneSolicitudPendiente,
   usuarioPublico,
 } from "./dominio.js";
 
@@ -51,25 +50,21 @@ export function crearApp({
   almacen = crearAlmacen(null),
   sesiones = crearSesiones(),
   carpetaPublica = null,
-  ejemplosDemo = true,
+  clienteCorreo = undefined,
 } = {}) {
   const app = express();
   const { requiereSesion, requiereAdmin, requierePermiso } = crearAutenticacion({ almacen, sesiones });
   const datos = () => almacen.datos;
 
-  //Resend
-  const resend = process.env.RESEND_API_KEY
-    ? new Resend(process.env.RESEND_API_KEY)
-    :null;
-
-  const correoPrueba = process.env.CORREO_PRUEBA;
-
-
+  const resend = clienteCorreo === null
+    ? null
+    : clienteCorreo ?? (process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null);
+  const remitente = process.env.RESEND_FROM || "AquaChile <onboarding@resend.dev>";
+  const urlAplicacion = process.env.APP_BASE_URL || "http://localhost:5173";
 
   const limiteLogin = crearLimitador({ max: 10, ventanaMs: 10 * MINUTOS });
-  const limiteConsulta = crearLimitador({ max: 30, ventanaMs: 10 * MINUTOS });
-  const limiteEnvio = crearLimitador({ max: 20, ventanaMs: 60 * MINUTOS });
   const limitePostulacion = crearLimitador({ max: 20, ventanaMs: 60 * MINUTOS });
+  const limiteInvitacion = crearLimitador({ max: 10, ventanaMs: 10 * MINUTOS });
 
   app.disable("x-powered-by");
   app.use((req, res, next) => {
@@ -106,7 +101,6 @@ export function crearApp({
       limiteLogin.contar(intento);
       return res.status(401).json({
         error: "Usuario o contraseña incorrectos.",
-        pendiente: tieneSolicitudPendiente(datos(), usuario),
       });
     }
     limiteLogin.limpiar(intento);
@@ -133,7 +127,7 @@ export function crearApp({
       usuarios: (esAdmin ? datos().usuarios : [req.usuario]).map(usuarioPublico),
       conexiones: esAdmin ? obtenerConexiones(datos()) : [],
       notificaciones: esAdmin ? leerNotificaciones(datos()) : [],
-      solicitudesAcceso: esAdmin ? datos().solicitudesAcceso : [],
+      invitaciones: esAdmin ? leerInvitaciones(datos()) : [],
     });
   });
 
@@ -167,87 +161,72 @@ export function crearApp({
     return responder(res, resultado);
   });
 
-  // ---------- Solicitudes de acceso ----------
+  // ---------- Invitaciones ----------
 
-  // Públicas: no hace falta iniciar sesión.
-  api.post("/accesos", async(req, res) => {
-    if (limiteEnvio.excedido(req.ip)) {
-      return demasiadosIntentos(res);
-    }
-    const resultado = crearSolicitudAcceso(datos(), req.body);
-    if (!resultado.ok) {
-      return responder(res, resultado);
-    }
-    limiteEnvio.contar(req.ip);
+  api.get("/admin/invitaciones", requiereSesion, requiereAdmin, (req, res) => {
+    res.json({ items: leerInvitaciones(datos()) });
+  });
+
+  api.post("/admin/invitaciones", requiereSesion, requiereAdmin, async (req, res) => {
+    const resultado = crearInvitacion(datos(), req.body ?? {}, req.usuario.usuario);
+    if (!resultado.ok) return responder(res, resultado);
 
     almacen.guardar();
+    const enlace = new URL(`/invitacion/${resultado.token}`, urlAplicacion).toString();
+    let correoEnviado = false;
+    let aviso = "El correo no está configurado. Copia el enlace y compártelo directamente con la persona invitada.";
 
-    //Enviar correo con resend
-    if(resend && correoPrueba){
-      const solicitud = resultado.solicitud
-
-      try{
-        const {error} = await resend.emails.send({
-          from:"AquaChile<onboarding@resend.dev>",
-          to:correoPrueba,
-          subject:`Nueva solicitud de acceso -${solicitud.nombre}  ${solicitud.apellido}`,
-          text:`
-          Se recibio una nueva solicitud de acceso al sistema AquaChile.
-          
-          Nombre:${solicitud.nombre}
-          Apellido:${solicitud.apellido}
-          RUT: ${solicitud.rut}
-          Teléfono: ${solicitud.telefono}
-          Correo: ${solicitud.correo}
-          Usuario solicitado: ${solicitud.usuario}
-
-          Motivo:
-          ${solicitud.motivo}
-
-          Codigo de seguimiento:
-          ${solicitud.codigo}
-
-          Estado:
-          ${solicitud.estado}
-          
-          `
+    if (resend) {
+      try {
+        const { error: errorCorreo } = await resend.emails.send({
+          from: remitente,
+          to: resultado.invitacion.correo,
+          subject: "Invitación para crear tu acceso a AquaChile",
+          text: `Hola ${resultado.invitacion.nombre},\n\nSe creó una cuenta para ti en el sistema AquaChile.\n\nUsuario: ${resultado.invitacion.usuario}\nDefine tu contraseña en este enlace (válido por 24 horas):\n${enlace}\n\nSi no esperabas esta invitación, puedes ignorar este mensaje.`,
         });
-
-        if(error){
-          console.error(
-            "Error al enviar correo con Resend:",error.message
-          );
-        }else{
-          console.log(
-            "Correo de solicitud enviado correctamente."
-          );
+        if (errorCorreo) {
+          console.error("No se pudo enviar la invitación:", errorCorreo.message);
+          aviso = "La invitación se creó, pero el correo no se pudo enviar. Copia el enlace y compártelo directamente.";
+        } else {
+          correoEnviado = true;
+          aviso = "Invitación enviada por correo.";
         }
-      } catch(error){
-        "No se pudo enviar el correo:", error.message
-      };
+      } catch (errorCorreo) {
+        console.error("No se pudo enviar la invitación:", errorCorreo);
+        aviso = "La invitación se creó, pero el correo no se pudo enviar. Copia el enlace y compártelo directamente.";
+      }
     }
 
-    return res.status(201).json({ solicitud: resultado.solicitud });
+    return res.status(201).json({
+      invitacion: resultado.invitacion,
+      correoEnviado,
+      enlace: correoEnviado ? null : enlace,
+      aviso,
+    });
   });
 
-
-
-
-  // Es POST (y no GET) para que el correo y el código no queden en la URL ni en los registros.
-  api.post("/accesos/consulta", (req, res) => {
-    if (limiteConsulta.excedido(req.ip)) {
-      return demasiadosIntentos(res);
-    }
-    const solicitud = consultarSolicitud(datos(), req.body?.correo, req.body?.codigo);
-    if (!solicitud) {
-      limiteConsulta.contar(req.ip);
-      return res.status(404).json({ error: "El correo o el código no coinciden con ninguna solicitud." });
-    }
-    return res.json({ solicitud });
+  api.post("/admin/invitaciones/:id/revocar", requiereSesion, requiereAdmin, (req, res) => {
+    const id = idDe(req);
+    if (id === null) return res.status(400).json({ error: "Invitación no válida." });
+    const resultado = revocarInvitacion(datos(), id);
+    if (resultado.ok) almacen.guardar();
+    return responder(res, resultado);
   });
 
-  api.get("/accesos/ejemplos", (req, res) => {
-    res.json({ ejemplos: ejemplosDemo ? ejemplosConsulta(datos()) : [] });
+  api.get("/invitaciones/:token", (req, res) => {
+    res.set("Referrer-Policy", "no-referrer");
+    res.set("Cache-Control", "no-store");
+    const resultado = consultarInvitacion(datos(), req.params.token);
+    if (!resultado.ok) return responder(res, resultado);
+    return res.json({ invitacion: resultado.invitacion });
+  });
+
+  api.post("/invitaciones/:token/aceptar", (req, res) => {
+    if (limiteInvitacion.excedido(req.ip)) return demasiadosIntentos(res);
+    limiteInvitacion.contar(req.ip);
+    const resultado = aceptarInvitacion(datos(), req.params.token, req.body?.clave);
+    if (resultado.ok) almacen.guardar();
+    return responder(res, resultado, { usuario: resultado.usuario });
   });
 
   // ---------- Ofertas y postulaciones ----------
@@ -304,29 +283,6 @@ export function crearApp({
     const resultado = actualizarEstadoPostulacion(datos(), id, req.body?.estado);
     if (resultado.ok) almacen.guardar();
     return responder(res, resultado, { postulacion: resultado.postulacion });
-  });
-
-  // Solo administradores.
-  api.post("/accesos/:id/estado", requiereSesion, requiereAdmin, (req, res) => {
-    const id = idDe(req);
-    if (id === null) return res.status(400).json({ error: "Solicitud no válida." });
-    const resultado = cambiarEstadoAcceso(datos(), id, req.body?.estado, req.usuario.usuario);
-    if (resultado.ok) {
-      if (resultado.usuarioEliminado) {
-        sesiones.cerrarDe(resultado.usuarioEliminado);
-        delete datos().presencia[resultado.usuarioEliminado];
-      }
-      almacen.guardar();
-    }
-    return responder(res, resultado);
-  });
-
-  api.post("/accesos/:id/comentarios", requiereSesion, requiereAdmin, (req, res) => {
-    const id = idDe(req);
-    if (id === null) return res.status(400).json({ error: "Solicitud no válida." });
-    const resultado = agregarComentarioAcceso(datos(), id, req.body?.texto, req.usuario.usuario);
-    if (resultado.ok) almacen.guardar();
-    return responder(res, resultado);
   });
 
   // ---------- Candidatos y solicitudes de evaluación ----------

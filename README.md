@@ -27,9 +27,9 @@ Cuentas de ejemplo: `admin / admin123`, `jefe.rrhh / rrhh123` (administradores) 
 | `server/index.js` | Arranca Express (lee `.env`, abre el archivo de datos, escucha el puerto). |
 | `server/app.js` | Crea la aplicación Express: todas las rutas `/api` y el servicio del frontend compilado. |
 | `server/middleware.js` | Sesión (`Authorization: Bearer`), permisos por rol/sección, límite de intentos y manejo de errores. |
-| `server/dominio.js` | Las reglas del sistema (antes en `src/auth.js`): usuarios, solicitudes de acceso, presencia, notificaciones. |
+| `server/dominio.js` | Las reglas del sistema: usuarios, invitaciones, presencia y notificaciones. |
 | `server/almacen.js` | Guarda los datos en `server/data/db.json` (escritura atómica). Sin base de datos externa. |
-| `server/seguridad.js` | Hash de contraseñas con scrypt (incluido en Node) y códigos aleatorios. |
+| `server/seguridad.js` | Hash de contraseñas y tokens de invitación (incluido en Node). |
 | `server/sesiones.js` | Sesiones en memoria (duran 8 horas desde la última actividad). |
 | `server/seed.js` | Datos de ejemplo de la primera ejecución. |
 
@@ -42,14 +42,14 @@ En el frontend, `src/api.js` hace las peticiones y `src/auth.js` mantiene una co
 | --- | --- | --- |
 | `POST /api/sesion` | público | Inicia sesión. Devuelve `{ token, sesion }`. |
 | `GET /api/sesion` · `DELETE /api/sesion` | sesión | Consulta / cierra la sesión. |
-| `GET /api/sincronizacion` | sesión | Usuarios, conexiones, notificaciones y solicitudes de acceso (el usuario normal solo recibe su propio registro). |
+| `GET /api/sincronizacion` | sesión | Usuarios, conexiones, notificaciones e invitaciones (el usuario normal solo recibe su propio registro). |
 | `POST /api/presencia/latido` · `/desconexion` | sesión | Estado conectado / inactivo / desconectado. |
 | `PATCH /api/usuarios/:usuario` | admin | Cambia rol y permisos. |
 | `PATCH /api/usuarios/:usuario/perfil` | el propio usuario o admin | Actualiza datos personales, foto y banner. |
-| `POST /api/accesos` | público | Envía una solicitud de acceso. |
-| `POST /api/accesos/consulta` | público | Consulta el estado con correo y código. |
-| `GET /api/accesos/ejemplos` | público | Solicitudes de ejemplo (se desactivan con `EJEMPLOS_DEMO=false`). |
-| `POST /api/accesos/:id/estado` · `/comentarios` | admin | Acepta/rechaza y comenta. El autor lo toma el servidor de la sesión. |
+| `GET/POST /api/admin/invitaciones` | admin | Lista y crea invitaciones. |
+| `POST /api/admin/invitaciones/:id/revocar` | admin | Revoca una invitación pendiente. |
+| `GET /api/invitaciones/:token` | público | Comprueba una invitación sin revelar el hash del token. |
+| `POST /api/invitaciones/:token/aceptar` | público | Configura la contraseña y consume la invitación una sola vez. |
 | `GET /api/ofertas` · `/ofertas/:id` | público | Lista ofertas publicadas y consulta su detalle. |
 | `POST /api/postulaciones` | público | Envía una postulación a una oferta vigente. |
 | `GET/POST /api/admin/ofertas` · `PATCH /api/admin/ofertas/:id` | admin | Consulta, crea y actualiza ofertas. |
@@ -61,6 +61,10 @@ En el frontend, `src/api.js` hace las peticiones y `src/auth.js` mantiene una co
 - `/` muestra las ofertas públicas; `/empleos` es un alias y `/empleos/:id` presenta el detalle y el formulario de postulación.
 - `/acceso` es la entrada al sistema interno; el portal público enlaza allí como «Acceso equipo».
 - El panel interno tiene secciones de administración para ofertas y postulaciones, disponibles solo para administradores.
+- Las cuentas nuevas se crean por invitación de un administrador. El enlace vence en 24 horas, es de un solo uso y permite que la persona defina su propia contraseña (mínimo 12 caracteres). Los tokens se guardan como hash.
+- Por defecto, las cuentas con rol «Usuario» reciben todos los permisos desactivados; el administrador selecciona los necesarios. Los administradores pueden invitar y revocar desde «Usuarios».
+- Si Resend no está configurado o falla el envío, el panel muestra el enlace para compartirlo directamente con la persona indicada. Configura `APP_BASE_URL` con la URL pública del frontend; para correo, define `RESEND_API_KEY` y un `RESEND_FROM` verificado en Resend.
+- El antiguo formulario y las rutas públicas de solicitud de acceso ya no están disponibles. Los registros históricos existentes en `db.json` se conservan, pero no se publican ni se usan para crear cuentas.
 - Ofertas, postulaciones y solicitudes de evaluación son datos distintos. Las postulaciones no crean automáticamente una evaluación psicolaboral.
 - Las ofertas iniciales están marcadas como ejemplos para la vista de demostración. Las postulaciones guardan nombre, correo, teléfono y mensaje, sin adjuntos.
 
@@ -73,9 +77,7 @@ npm run test:server  # servidor: reglas del dominio y API HTTP (node:test)
 
 ## Cosas a tener en cuenta
 
-- **Las contraseñas ya no se guardan en claro** (hash scrypt). La excepción es `credenciales` en las solicitudes
-  aceptadas: se conservan para que el solicitante vea su contraseña inicial en «Estado de solicitud», igual que antes.
-  Para producción conviene reemplazar eso por un enlace de «crear contraseña» enviado por correo.
+- **Las contraseñas no se guardan en claro** (hash scrypt). Los tokens de invitación también se almacenan como hash; el enlace original solo se muestra al administrador al crear la invitación.
 - Reiniciar el servidor cierra todas las sesiones (están en memoria). Los datos se conservan en `server/data/db.json`.
 - Candidatos y solicitudes de evaluación se guardan como lista completa: si dos personas editan a la vez, gana el
   último guardado. Si el uso real lo requiere, el siguiente paso es pasar a endpoints por registro (crear / cambiar estado).

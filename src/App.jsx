@@ -12,7 +12,7 @@ import Sidebar from "./components/Sidebar";
 import PerfilPanel from "./components/PerfilPanel";
 import DashboardPage from "./pages/DashboardPage";
 import LoginPage from "./pages/LoginPage";
-import SolicitudAccesoPage from "./pages/SolicitudAccesoPage";
+import InvitacionPage from "./pages/InvitacionPage";
 import EmpleosPage from "./pages/EmpleosPage";
 import { ToastProvider, useToast } from "./components/Toast";
 
@@ -49,9 +49,18 @@ function AppInterna() {
     }
   }
 
-  // Página pública: no necesita iniciar sesión.
+  // La página anterior de solicitudes se conserva como redirección para enlaces antiguos.
   if (location.pathname === "/solicitud") {
-    return <SolicitudAccesoPage />;
+    return <Navigate to="/acceso" replace />;
+  }
+
+  if (location.pathname.startsWith("/invitacion/")) {
+    return (
+      <Routes>
+        <Route path="/invitacion/:token" element={<InvitacionPage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    );
   }
 
   if (

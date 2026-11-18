@@ -7,7 +7,7 @@ let servidor;
 let url;
 
 beforeEach(async () => {
-  servidor = crearApp().listen(0, "127.0.0.1");
+  servidor = crearApp({ clienteCorreo: null }).listen(0, "127.0.0.1");
   await new Promise((resolver) => servidor.once("listening", resolver));
   url = `http://127.0.0.1:${servidor.address().port}/api`;
 });
@@ -34,16 +34,6 @@ async function ingresar(usuario, clave) {
   const { datos } = await pedir("POST", "/sesion", { cuerpo: { usuario, clave } });
   return datos.token;
 }
-
-const solicitud = {
-  nombre: "Ana",
-  apellido: "Prueba",
-  rut: "12.345.678-5",
-  telefono: "+56 9 1234 5678",
-  correo: "ana@example.test",
-  usuario: "aprueba",
-  motivo: "Necesito acceso",
-};
 
 describe("Sesión", () => {
   it("inicia sesión y devuelve token, rol y permisos", async () => {
@@ -86,17 +76,18 @@ describe("Permisos por rol", () => {
   it("un administrador recibe todo y un usuario solo lo suyo", async () => {
     const admin = await pedir("GET", "/sincronizacion", { token: await ingresar("admin", "admin123") });
     assert.ok(admin.datos.usuarios.length > 1);
-    assert.ok(admin.datos.solicitudesAcceso.length > 0);
+    assert.deepEqual(admin.datos.invitaciones, []);
+    assert.equal("solicitudesAcceso" in admin.datos, false);
 
     const usuario = await pedir("GET", "/sincronizacion", { token: await ingresar("psicologo", "psico123") });
     assert.deepEqual(usuario.datos.usuarios.map((u) => u.usuario), ["psicologo"]);
-    assert.deepEqual(usuario.datos.solicitudesAcceso, []);
+    assert.deepEqual(usuario.datos.invitaciones, []);
     assert.deepEqual(usuario.datos.notificaciones, []);
   });
 
-  it("solo un administrador cambia estados y permisos", async () => {
+  it("solo un administrador administra invitaciones y permisos", async () => {
     const token = await ingresar("psicologo", "psico123");
-    assert.equal((await pedir("POST", "/accesos/5/estado", { token, cuerpo: { estado: "Aceptada" } })).status, 403);
+    assert.equal((await pedir("POST", "/admin/invitaciones", { token, cuerpo: {} })).status, 403);
     assert.equal((await pedir("PATCH", "/usuarios/admin", { token, cuerpo: { rol: "Usuario", permisos: {} } })).status, 403);
   });
 
@@ -109,49 +100,47 @@ describe("Permisos por rol", () => {
   });
 });
 
-describe("Solicitudes de acceso", () => {
-  it("el flujo completo: enviar, consultar, aceptar y entrar con la cuenta nueva", async () => {
-    const creada = await pedir("POST", "/accesos", { cuerpo: solicitud });
+describe("Invitaciones de acceso", () => {
+  const invitacion = {
+    nombre: "Ana Prueba",
+    correo: "ana@example.test",
+    usuario: "aprueba",
+    rol: "Usuario",
+    permisos: { indicadores: true },
+  };
+
+  it("el ciclo de invitación crea una contraseña sin exponer el hash del token", async () => {
+    const admin = await ingresar("admin", "admin123");
+    const creada = await pedir("POST", "/admin/invitaciones", { token: admin, cuerpo: invitacion });
     assert.equal(creada.status, 201);
-    const { id, codigo } = creada.datos.solicitud;
+    assert.equal(creada.datos.correoEnviado, false);
+    assert.match(creada.datos.enlace, /\/invitacion\/[a-f0-9]{64}$/);
+    assert.equal(JSON.stringify(creada.datos).includes("tokenHash"), false);
 
-    const consulta = await pedir("POST", "/accesos/consulta", { cuerpo: { correo: solicitud.correo, codigo } });
-    assert.equal(consulta.datos.solicitud.estado, "Pendiente");
-    const mala = await pedir("POST", "/accesos/consulta", { cuerpo: { correo: solicitud.correo, codigo: "ZZZZZZ" } });
-    assert.equal(mala.status, 404);
+    const token = new URL(creada.datos.enlace).pathname.split("/").pop();
+    const consulta = await pedir("GET", `/invitaciones/${token}`);
+    assert.equal(consulta.status, 200);
+    assert.equal(consulta.datos.invitacion.usuario, "aprueba");
+    assert.equal((await pedir("POST", `/invitaciones/${token}/aceptar`, { cuerpo: { clave: "corta" } })).status, 400);
 
+    const aceptada = await pedir("POST", `/invitaciones/${token}/aceptar`, { cuerpo: { clave: "una-clave-segura-123" } });
+    assert.equal(aceptada.status, 200);
+    assert.equal((await pedir("GET", `/invitaciones/${token}`)).status, 410);
+    assert.ok(await ingresar("aprueba", "una-clave-segura-123"));
+    assert.equal(aceptada.datos.usuario.permisos.candidatos, false);
+  });
+
+  it("permite revocar invitaciones y desactiva los endpoints públicos antiguos", async () => {
     const admin = await ingresar("admin", "admin123");
-    assert.equal((await pedir("POST", `/accesos/${id}/estado`, { token: admin, cuerpo: { estado: "Aceptada" } })).status, 200);
-    const { credenciales } = (await pedir("POST", "/accesos/consulta", { cuerpo: { correo: solicitud.correo, codigo } })).datos.solicitud;
-    assert.ok(await ingresar(credenciales.usuario, credenciales.clave));
-  });
+    const creada = await pedir("POST", "/admin/invitaciones", { token: admin, cuerpo: invitacion });
+    const id = creada.datos.invitacion.id;
+    assert.equal((await pedir("POST", `/admin/invitaciones/${id}/revocar`, { token: admin })).status, 200);
 
-  it("al revertir la aceptación se cierra la sesión de esa cuenta", async () => {
-    const { solicitud: creada } = (await pedir("POST", "/accesos", { cuerpo: solicitud })).datos;
-    const admin = await ingresar("admin", "admin123");
-    await pedir("POST", `/accesos/${creada.id}/estado`, { token: admin, cuerpo: { estado: "Aceptada" } });
-    const { credenciales } = (await pedir("POST", "/accesos/consulta", { cuerpo: { correo: solicitud.correo, codigo: creada.codigo } })).datos.solicitud;
-    const token = await ingresar(credenciales.usuario, credenciales.clave);
-    assert.equal((await pedir("GET", "/sesion", { token })).status, 200);
-
-    await pedir("POST", `/accesos/${creada.id}/estado`, { token: admin, cuerpo: { estado: "Rechazada" } });
-    assert.equal((await pedir("GET", "/sesion", { token })).status, 401);
-  });
-
-  it("valida los datos y no repite usuarios", async () => {
-    assert.equal((await pedir("POST", "/accesos", { cuerpo: { ...solicitud, correo: "malo" } })).status, 400);
-    assert.equal((await pedir("POST", "/accesos", { cuerpo: { ...solicitud, usuario: "admin" } })).status, 409);
-  });
-
-  it("ofrece las solicitudes de ejemplo sin sesión", async () => {
-    const { datos } = await pedir("GET", "/accesos/ejemplos");
-    assert.ok(datos.ejemplos.some((e) => e.nombre === "Camila Fuentes"));
-  });
-
-  it("el login informa si la solicitud sigue pendiente", async () => {
-    const { status, datos } = await pedir("POST", "/sesion", { cuerpo: { usuario: "fnunez", clave: "x" } });
-    assert.equal(status, 401);
-    assert.equal(datos.pendiente, true);
+    const token = new URL(creada.datos.enlace).pathname.split("/").pop();
+    assert.equal((await pedir("GET", `/invitaciones/${token}`)).status, 410);
+    assert.equal((await pedir("POST", "/accesos", { cuerpo: invitacion })).status, 404);
+    assert.equal((await pedir("POST", "/accesos/consulta", { cuerpo: {} })).status, 404);
+    assert.equal((await pedir("GET", "/accesos/ejemplos")).status, 404);
   });
 });
 

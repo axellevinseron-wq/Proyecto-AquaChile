@@ -45,11 +45,7 @@ function LoginPage({ onLogin }) {
     const resultado = await iniciarSesion(nombre, clave);
     setEntrando(false);
     if (!resultado.ok) {
-      setMensaje(
-        resultado.pendiente
-          ? "Tu solicitud de cuenta aún está pendiente de aprobación."
-          : resultado.error,
-      );
+      setMensaje(resultado.error);
       return;
     }
     guardarUsuarioRecordado(recordar ? nombre : "");
@@ -123,12 +119,6 @@ function LoginPage({ onLogin }) {
         <div className="login-accesos">
           <Link to="/" className="login-olvido">
             Ver ofertas de trabajo
-          </Link>
-          <Link to="/solicitud?tab=enviar" className="login-olvido">
-            Enviar una solicitud de acceso
-          </Link>
-          <Link to="/solicitud?tab=estado" className="login-olvido">
-            Ver el estado de mi solicitud
           </Link>
         </div>
       </form>
