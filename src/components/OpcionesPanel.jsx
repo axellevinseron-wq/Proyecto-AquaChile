@@ -180,8 +180,27 @@ function OpcionesPanel({ opciones, onCambiar }) {
           </div>
         </div>
 
-        <div className="col-12 col-lg-6">
-          <div className="card card-body caja caja--azul h-100">
+        <div className="col-12 col-lg-6 d-flex flex-column gap-3">
+          <div className="card card-body caja caja--azul">
+            <h2 className="h5 mb-3">Reloj y fecha</h2>
+            <label className="form-label" htmlFor="reloj-estilo">Modelo de reloj</label>
+            <select id="reloj-estilo" className="form-select mb-3"
+              value={opciones.relojEstilo || "digital"}
+              onChange={(e) => onCambiar({ relojEstilo: e.target.value })}>
+              <option value="digital">Digital moderno</option>
+              <option value="clasico">Digital clásico</option>
+              <option value="analogico">Analógico</option>
+            </select>
+            <label className="form-label" htmlFor="reloj-formato">Formato de hora</label>
+            <select id="reloj-formato" className="form-select mb-3"
+              value={opciones.relojFormato || "24"}
+              onChange={(e) => onCambiar({ relojFormato: e.target.value })}>
+              <option value="24">24 horas</option>
+              <option value="12">12 horas (AM/PM)</option>
+            </select>
+            <p className="form-text">El reloj de la barra superior cambia al instante. Tu preferencia queda guardada en este navegador.</p>
+          </div>
+          <div className="card card-body caja caja--azul">
             <h2 className="h5 mb-1">Fondo</h2>
             <p className="form-text mt-0 mb-3">Elige el fondo de las pantallas del sistema.</p>
 

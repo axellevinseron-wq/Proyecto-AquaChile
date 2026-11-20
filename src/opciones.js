@@ -10,7 +10,7 @@ export const LIMITES = {
 
 
 // colorBarra: color de la barra superior ("" = degradado azul por defecto)
-export const OPCIONES_INICIALES = { oscuro: false, fondo: "ninguno", letra: 100, sistema: 100, colorBarra: "" };
+export const OPCIONES_INICIALES = { oscuro: false, fondo: "ninguno", letra: 100, sistema: 100, colorBarra: "", relojEstilo: "digital", relojFormato: "24" };
 
 export const COLOR_BARRA_BASE = "#3176d1";
 export const COLORES_BARRA = [
@@ -54,6 +54,8 @@ function leer() {
         letra: limitar(guardadas.letra, LIMITES.letra, 100),
         sistema: limitar(guardadas.sistema, LIMITES.sistema, 100),
         colorBarra: colorValido(guardadas.colorBarra),
+        relojEstilo: ["digital", "clasico", "analogico"].includes(guardadas.relojEstilo) ? guardadas.relojEstilo : "digital",
+        relojFormato: guardadas.relojFormato === "12" ? "12" : "24",
       };
     }
   } catch {
@@ -68,7 +70,7 @@ export function useOpciones() {
   useEffect(() => {
     try {
      
-      localStorage.setItem(CLAVE, JSON.stringify({ letra: opciones.letra, sistema: opciones.sistema, colorBarra: opciones.colorBarra }));
+      localStorage.setItem(CLAVE, JSON.stringify({ letra: opciones.letra, sistema: opciones.sistema, colorBarra: opciones.colorBarra, relojEstilo: opciones.relojEstilo, relojFormato: opciones.relojFormato }));
     } catch {
      
     }

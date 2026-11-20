@@ -1,7 +1,7 @@
 import Icon from "./Icon";
 import { FechaHora } from "./Reloj";
 
-function AppNavbar({ sidebarAbierto, onToggleSidebar }) {
+function AppNavbar({ sidebarAbierto, onToggleSidebar, opciones = {} }) {
   return (
     <header className="main-header">
       {/* Botón hamburguesa a la izquierda de la barra: abre y cierra el menú lateral */}
@@ -15,7 +15,7 @@ function AppNavbar({ sidebarAbierto, onToggleSidebar }) {
       >
         <Icon nombre="menu" size={22} />
       </button>
-      <FechaHora className="topbar-fechahora" />
+      <FechaHora className="topbar-fechahora" estilo={opciones.relojEstilo} formato={opciones.relojFormato} />
       <nav className="main-header__nav" aria-label="Barra superior">
         <span className="topbar-item topbar-marca">AquaChile</span>
       </nav>

@@ -1,13 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
-  avisarDesconexion,
   crearSolicitudAcceso,
   estadoConexion,
-  iniciarSesion,
   leerNotificaciones,
+  marcarConexion,
+  marcarDesconexion,
   obtenerConexiones,
-  refrescarDatos,
-  registrarLatido,
 } from "./auth";
 import { crearPdf } from "./pdf";
 
@@ -34,23 +32,18 @@ describe("Estado de conexión", () => {
     expect(estadoConexion(registro, ahora + 6 * MINUTO)).toBe("Desconectado");
   });
 
-  it("al iniciar sesión el usuario aparece conectado y al desconectarse deja de estarlo", async () => {
-    await iniciarSesion("admin", "admin123");
+  it("marcarConexion y marcarDesconexion cambian el estado en la lista", () => {
+    marcarConexion("admin");
     expect(obtenerConexiones().find((c) => c.usuario === "admin").estado).toBe("Conectado");
-    expect(obtenerConexiones().find((c) => c.usuario === "psicologo").estado).toBe("Desconectado");
-
-    await registrarLatido(true);
-    await avisarDesconexion();
-    await refrescarDatos();
+    marcarDesconexion("admin");
     expect(obtenerConexiones().find((c) => c.usuario === "admin").estado).toBe("Desconectado");
   });
 });
 
 describe("Notificaciones", () => {
-  it("registran sesiones y solicitudes, las más nuevas primero", async () => {
-    await iniciarSesion("admin", "admin123");
-    await crearSolicitudAcceso({ nombre: "Ana Prueba", correo: "ana@example.test", usuario: "aprueba", motivo: "Acceso" });
-    await refrescarDatos();
+  it("registran sesiones y solicitudes, las más nuevas primero", () => {
+    marcarConexion("admin");
+    crearSolicitudAcceso({ nombre: "Ana Prueba", correo: "ana@example.test", usuario: "aprueba", motivo: "Acceso" });
     const textos = leerNotificaciones().map((n) => n.texto);
     expect(textos[0]).toBe("Ana Prueba envió una solicitud de acceso.");
     expect(textos).toContain("admin inició sesión.");

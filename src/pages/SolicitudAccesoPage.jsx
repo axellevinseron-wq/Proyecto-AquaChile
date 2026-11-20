@@ -1,374 +1,160 @@
-import { useEffect, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import Icon from "../components/Icon";
+import { useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { FechaHora } from "../components/Reloj";
-import { useToast } from "../components/Toast";
-import { consultarSolicitud, crearSolicitudAcceso, ejemplosConsulta, nombreCompleto } from "../auth";
 import { correoValido, rutValido, telefonoValido } from "../logica";
+import { crearSolicitudAccesoApi, consultarSolicitudAccesoApi } from "../solicitudesAccesoApi";
+import "./SolicitudAccesoPage.css";
 
-const TABS = ["enviar", "estado"];
+const INICIAL = { nombre: "", apellido: "", rut: "", telefono: "", correo: "", usuario: "", motivo: "" };
 
-function formatearFecha(iso) {
-  return new Date(iso).toLocaleString("es-CL", { dateStyle: "medium", timeStyle: "short" });
+function formatearRut(valor) {
+  const limpio = String(valor || "").replace(/[^\dkK]/g, "").toUpperCase().slice(0, 9);
+  if (limpio.length < 2) return limpio;
+  const cuerpo = limpio.slice(0, -1).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return `${cuerpo}-${limpio.slice(-1)}`;
 }
 
-function claseEstado(estado) {
-  if (estado === "Aceptada") return "text-bg-success";
-  if (estado === "Rechazada") return "text-bg-danger";
-  return "text-bg-warning";
+function formatearFecha(fecha) {
+  if (!fecha) return "";
+  const valor = new Date(fecha);
+  return Number.isNaN(valor.getTime()) ? "" : valor.toLocaleString("es-CL", { dateStyle: "medium", timeStyle: "short" });
 }
 
-// Ilustración simple para el bloque de color de cada tarjeta.
-function Ilustracion({ tipo }) {
-  return (
-    <svg viewBox="0 0 160 120" className="pub-ilustracion" aria-hidden="true" focusable="false">
-      <rect x="28" y="22" width="104" height="70" rx="8" fill="#fff" opacity="0.95" />
-      <rect x="28" y="22" width="104" height="14" rx="8" fill="#fff" />
-      <circle cx="38" cy="29" r="2.5" fill="#4296fd" />
-      <circle cx="47" cy="29" r="2.5" fill="#4296fd" />
-      <circle cx="56" cy="29" r="2.5" fill="#4296fd" />
-      {tipo === "enviar" ? (
-        <>
-          <rect x="40" y="46" width="52" height="6" rx="3" fill="#9cc3f5" />
-          <rect x="40" y="58" width="80" height="6" rx="3" fill="#c9ddf8" />
-          <rect x="40" y="70" width="38" height="6" rx="3" fill="#c9ddf8" />
-          <polygon points="104,44 128,56 114,58 110,70" fill="#153e6d" />
-        </>
-      ) : (
-        <>
-          <circle cx="62" cy="62" r="14" fill="none" stroke="#153e6d" strokeWidth="5" />
-          <line x1="72" y1="72" x2="88" y2="88" stroke="#153e6d" strokeWidth="6" strokeLinecap="round" />
-          <rect x="92" y="50" width="30" height="6" rx="3" fill="#9cc3f5" />
-          <rect x="92" y="62" width="22" height="6" rx="3" fill="#c9ddf8" />
-        </>
-      )}
-      <rect x="14" y="96" width="132" height="8" rx="4" fill="#fff" opacity="0.8" />
-    </svg>
-  );
+function etiquetaEstado(estado) {
+  return { PENDIENTE: "Pendiente", ACEPTADA: "Aceptada", RECHAZADA: "Rechazada" }[estado] || estado;
 }
 
-function FormularioEnvio({ onEnviada }) {
-  const { notificar } = useToast();
-  const [datos, setDatos] = useState({ nombre: "", apellido: "", rut: "", telefono: "", correo: "", usuario: "", motivo: "" });
+function Formulario({ alCrear }) {
+  const [datos, setDatos] = useState(INICIAL);
   const [error, setError] = useState("");
-  const [enviando, setEnviando] = useState(false);
-
-  function cambiar(evento) {
-    const { name, value } = evento.target;
-    setDatos((actuales) => ({ ...actuales, [name]: value }));
+  const [cv, setCv] = useState(null);
+  const [cargando, setCargando] = useState(false);
+  const cambiar = (e) => {
+    const { name, value } = e.target;
+    setDatos((actual) => ({ ...actual, [name]: name === "rut" ? formatearRut(value) : value }));
     setError("");
-  }
+  };
 
-  async function enviar(evento) {
-    evento.preventDefault();
-    const campos = [datos.nombre, datos.apellido, datos.rut, datos.telefono, datos.correo, datos.usuario, datos.motivo];
-    if (campos.some((campo) => !campo.trim())) {
-      setError("Completa todos los campos.");
-      return;
+  async function enviar(e) {
+    e.preventDefault();
+    if (Object.values(datos).some((v) => !v.trim())) return setError("Completa todos los campos.");
+    if (!cv) return setError("Debes adjuntar tu currículum vitae en PDF.");
+    if (cv.size > 10 * 1024 * 1024) return setError("El CV no puede superar 10 MB.");
+    if (!cv.name.toLowerCase().endsWith(".pdf") || cv.type && cv.type !== "application/pdf") return setError("El CV debe ser un archivo PDF.");
+    if (!rutValido(datos.rut)) return setError("El RUT ingresado no es válido. Comprueba su dígito verificador.");
+    if (!telefonoValido(datos.telefono)) return setError("Ingresa un teléfono válido, por ejemplo +56 9 1234 5678.");
+    if (!correoValido(datos.correo)) return setError("Ingresa un correo electrónico válido.");
+    if (/\s/.test(datos.usuario.trim())) return setError("El nombre de usuario no debe contener espacios.");
+    setCargando(true);
+    try {
+      const resultado = await crearSolicitudAccesoApi(datos, cv);
+      if (!resultado.codigoSeguimiento) throw new Error("El servidor no devolvió un código de seguimiento.");
+      alCrear({ correo: datos.correo.trim(), codigo: resultado.codigoSeguimiento });
+      setDatos(INICIAL);
+    } catch (err) {
+      setError(err.message || "No se pudo registrar la solicitud.");
+    } finally {
+      setCargando(false);
     }
-    if (!rutValido(datos.rut)) {
-      setError("Ingresa un RUT válido, por ejemplo 12.345.678-5.");
-      return;
-    }
-    if (!telefonoValido(datos.telefono)) {
-      setError("Ingresa un teléfono válido (8 a 12 dígitos).");
-      return;
-    }
-    if (!correoValido(datos.correo)) {
-      setError("Ingresa un correo válido.");
-      return;
-    }
-    if (/\s/.test(datos.usuario.trim())) {
-      setError("El usuario no puede tener espacios.");
-      return;
-    }
-    setEnviando(true);
-    const resultado = await crearSolicitudAcceso(datos);
-    if (!resultado.ok) {
-      setEnviando(false);
-      setError(resultado.error);
-      return;
-    }
-    setEnviando(false);
-    notificar("Solicitud enviada correctamente.");
-    onEnviada(resultado.solicitud);
   }
 
   return (
-    <form className="pub-form" onSubmit={enviar} noValidate>
-      <div className="row g-2">
-        <div className="col-12 col-md-6">
-          <label htmlFor="pub-nombre" className="form-label">Nombre</label>
-          <input id="pub-nombre" name="nombre" className="form-control" autoComplete="given-name" value={datos.nombre} onChange={cambiar} />
-        </div>
-        <div className="col-12 col-md-6">
-          <label htmlFor="pub-apellido" className="form-label">Apellido</label>
-          <input id="pub-apellido" name="apellido" className="form-control" autoComplete="family-name" value={datos.apellido} onChange={cambiar} />
-        </div>
-        <div className="col-12 col-md-6">
-          <label htmlFor="pub-rut" className="form-label">RUT</label>
-          <input id="pub-rut" name="rut" className="form-control" placeholder="12.345.678-5" autoComplete="off" value={datos.rut} onChange={cambiar} />
-        </div>
-        <div className="col-12 col-md-6">
-          <label htmlFor="pub-telefono" className="form-label">Teléfono</label>
-          <input id="pub-telefono" name="telefono" type="tel" className="form-control" placeholder="+56 9 1234 5678" autoComplete="tel" value={datos.telefono} onChange={cambiar} />
-        </div>
-        <div className="col-12 col-md-6">
-          <label htmlFor="pub-correo" className="form-label">Correo</label>
-          <input id="pub-correo" name="correo" type="email" className="form-control" autoComplete="email" value={datos.correo} onChange={cambiar} />
-        </div>
-        <div className="col-12 col-md-6">
-          <label htmlFor="pub-usuario" className="form-label">Usuario que quieres usar</label>
-          <input id="pub-usuario" name="usuario" className="form-control" autoComplete="off" value={datos.usuario} onChange={cambiar} />
-        </div>
-        <div className="col-12">
-          <label htmlFor="pub-motivo" className="form-label">Motivo de la solicitud</label>
-          <textarea id="pub-motivo" name="motivo" rows="3" className="form-control" value={datos.motivo} onChange={cambiar} />
-        </div>
+    <form onSubmit={enviar} className="sa-form">
+      <div className="sa-form-grid">
+        <label>Nombre <input name="nombre" autoComplete="given-name" value={datos.nombre} onChange={cambiar} required maxLength={100} /></label>
+        <label>Apellido <input name="apellido" autoComplete="family-name" value={datos.apellido} onChange={cambiar} required maxLength={100} /></label>
+        <label>RUT <input name="rut" placeholder="12.345.678-5" value={datos.rut} onChange={cambiar} required maxLength={12} /></label>
+        <label>Teléfono <input name="telefono" type="tel" placeholder="+56 9 1234 5678" autoComplete="tel" value={datos.telefono} onChange={cambiar} required /></label>
+        <label>Correo electrónico <input name="correo" type="email" autoComplete="email" value={datos.correo} onChange={cambiar} required maxLength={200} /></label>
+        <label>Usuario solicitado <input name="usuario" autoComplete="off" value={datos.usuario} onChange={cambiar} required maxLength={80} /></label>
+        <label className="sa-full">Motivo de la solicitud <textarea name="motivo" value={datos.motivo} onChange={cambiar} required rows={4} maxLength={2000} placeholder="Explica brevemente por qué necesitas acceder al sistema." /></label>
+        <label className="sa-full sa-cv-label">Currículum vitae (obligatorio)
+          <span className="sa-cv-hint">Adjunta tu CV en formato PDF, máximo 10 MB. Solo el administrador podrá descargarlo.</span>
+          <input type="file" accept=".pdf,application/pdf" required onChange={(e) => { setCv(e.target.files?.[0] || null); setError(""); }} />
+          {cv && <span className="sa-cv-selected">Archivo seleccionado: {cv.name}</span>}
+        </label>
       </div>
-      {error && (
-        <p className="pub-error" role="alert">
-          {error}
-        </p>
-      )}
-      <button type="submit" className="btn pub-boton mt-3" disabled={enviando}>
-        {enviando ? "Enviando..." : "Enviar mi solicitud"}
-      </button>
+      {error && <p className="sa-error" role="alert">{error}</p>}
+      <div className="sa-actions"><button type="submit" disabled={cargando}>{cargando ? "Enviando solicitud…" : "Enviar solicitud"}</button></div>
     </form>
   );
 }
 
-function ConsultaEstado({ correoInicial, codigoInicial }) {
-  const { notificar } = useToast();
-  const [correo, setCorreo] = useState(correoInicial);
-  const [codigo, setCodigo] = useState(codigoInicial);
-  const [validado, setValidado] = useState(null); // { correo, codigo } ya comprobados
+function Estado({ inicial }) {
+  const [correo, setCorreo] = useState(inicial.correo || "");
+  const [codigo, setCodigo] = useState(inicial.codigo || "");
+  const [resultado, setResultado] = useState(null);
   const [error, setError] = useState("");
+  const [cargando, setCargando] = useState(false);
 
-  const [solicitud, setSolicitud] = useState(null);
-  const [ejemplos, setEjemplos] = useState([]);
-
-  // Se vuelve a consultar al servidor cada pocos segundos, para ver los cambios del administrador.
-  useEffect(() => {
-    let activo = true;
-    async function actualizar() {
-      const [lista, actual] = await Promise.all([
-        ejemplosConsulta(),
-        validado ? consultarSolicitud(validado.correo, validado.codigo) : null,
-      ]);
-      if (!activo) return;
-      setEjemplos(lista);
-      if (validado) setSolicitud(actual);
-    }
-    actualizar();
-    const intervalo = setInterval(actualizar, 10000);
-    return () => {
-      activo = false;
-      clearInterval(intervalo);
-    };
-  }, [validado]);
-
-  async function validar(correoIngresado, codigoIngresado) {
-    const encontrada = await consultarSolicitud(correoIngresado, codigoIngresado);
-    if (!encontrada) {
-      setValidado(null);
-      setSolicitud(null);
-      setError("El correo o el código no coinciden con ninguna solicitud.");
-      return;
-    }
+  async function consultar(e) {
+    e.preventDefault();
     setError("");
-    setSolicitud(encontrada);
-    setValidado({ correo: correoIngresado, codigo: codigoIngresado });
-    notificar("Código validado. Aquí está el estado de tu solicitud.");
-  }
-
-  function consultar(evento) {
-    evento.preventDefault();
-    validar(correo, codigo);
-  }
-
-  function usarEjemplo(ejemplo) {
-    setCorreo(ejemplo.correo);
-    setCodigo(ejemplo.codigo);
-    validar(ejemplo.correo, ejemplo.codigo);
+    setResultado(null);
+    if (!correoValido(correo)) return setError("Ingresa un correo válido.");
+    if (!codigo.trim()) return setError("Ingresa el código de seguimiento.");
+    setCargando(true);
+    try {
+      setResultado(await consultarSolicitudAccesoApi(correo, codigo));
+    } catch (err) {
+      setError(err.message || "No fue posible consultar la solicitud.");
+    } finally {
+      setCargando(false);
+    }
   }
 
   return (
     <>
-      <form className="pub-form" onSubmit={consultar} noValidate>
-        <div className="row g-2 align-items-end">
-          <div className="col-12 col-md-5">
-            <label htmlFor="est-correo" className="form-label">Correo</label>
-            <input id="est-correo" type="email" className="form-control" autoComplete="email" value={correo} onChange={(e) => { setCorreo(e.target.value); setError(""); }} />
-          </div>
-          <div className="col-7 col-md-4">
-            <label htmlFor="est-codigo" className="form-label">Código</label>
-            <input id="est-codigo" className="form-control text-uppercase" autoComplete="off" maxLength={6} value={codigo} onChange={(e) => { setCodigo(e.target.value); setError(""); }} />
-          </div>
-          <div className="col-5 col-md-3">
-            <button type="submit" className="btn pub-boton w-100">Ver estado</button>
-          </div>
+      <form className="sa-form" onSubmit={consultar}>
+        <div className="sa-form-grid">
+          <label>Correo electrónico <input type="email" autoComplete="email" value={correo} onChange={(e) => setCorreo(e.target.value)} required /></label>
+          <label>Código de seguimiento <input value={codigo} onChange={(e) => setCodigo(e.target.value.toUpperCase())} autoComplete="off" required placeholder="Código entregado al enviar" /></label>
         </div>
-        {error && (
-          <p className="pub-error" role="alert">
-            {error}
-          </p>
-        )}
+        {error && <p className="sa-error" role="alert">{error}</p>}
+        <div className="sa-actions"><button type="submit" disabled={cargando}>{cargando ? "Consultando…" : "Consultar estado"}</button></div>
       </form>
-
-      {ejemplos.length > 0 && (
-        <details className="pub-ejemplos">
-          <summary>Solicitudes de ejemplo para probar</summary>
-          <p className="small text-secondary mb-2">
-            Personas ya registradas en el sistema. Pulsa «Consultar» para ver su estado sin escribir el correo ni el código.
-          </p>
-          <div className="pub-ejemplos__lista">
-            {ejemplos.map((ejemplo) => (
-              <div key={ejemplo.id} className="pub-ejemplos__fila">
-                <div className="pub-ejemplos__persona">
-                  <strong>{ejemplo.nombre}</strong>
-                  <span className="small text-secondary">{ejemplo.correo} · Código {ejemplo.codigo}</span>
-                </div>
-                <span className={`badge ${claseEstado(ejemplo.estado)}`}>{ejemplo.estado}</span>
-                <button
-                  type="button"
-                  className="btn btn-outline-secondary btn-sm"
-                  onClick={() => usarEjemplo(ejemplo)}
-                  aria-label={`Consultar solicitud de ${ejemplo.nombre}`}
-                >
-                  Consultar
-                </button>
-              </div>
-            ))}
-          </div>
-        </details>
-      )}
-
-      {solicitud && (
-        <div className="pub-resultado" aria-live="polite">
-          <div className="d-flex flex-wrap align-items-center gap-2 mb-2">
-            <h3 className="h5 mb-0">Solicitud de {nombreCompleto(solicitud)}</h3>
-            <span className={`badge ${claseEstado(solicitud.estado)}`}>{solicitud.estado}</span>
-          </div>
-          <p className="small text-secondary mb-3">
-            Usuario solicitado: <strong>{solicitud.usuario}</strong> · Enviada el {formatearFecha(solicitud.fecha)}
-          </p>
-
-          {solicitud.estado === "Aceptada" && solicitud.credenciales && (
-            <div className="pub-credenciales">
-              <h4 className="h6">¡Tu solicitud fue aprobada! Estos son tus datos para iniciar sesión:</h4>
-              <dl className="pub-credenciales__datos">
-                <dt>Usuario</dt>
-                <dd>{solicitud.credenciales.usuario}</dd>
-                <dt>Contraseña</dt>
-                <dd>{solicitud.credenciales.clave}</dd>
-              </dl>
-              <Link to="/" className="btn pub-boton btn-sm">Ir al inicio de sesión</Link>
-            </div>
-          )}
-          {solicitud.estado === "Rechazada" && (
-            <p className="pub-aviso-rechazo">Tu solicitud no fue aprobada. Revisa los comentarios del administrador.</p>
-          )}
-          {solicitud.estado === "Pendiente" && (
-            <p className="text-secondary">Tu solicitud está en revisión. Esta página se actualiza sola cuando el administrador la responda.</p>
-          )}
-
-          <h4 className="h6 mt-3">Comentarios</h4>
-          {solicitud.comentarios.length === 0 ? (
-            <p className="text-secondary small mb-0">Aún no hay comentarios.</p>
-          ) : (
-            <ul className="pub-comentarios">
-              {solicitud.comentarios.map((c, i) => (
-                <li key={i} className={c.sistema ? "pub-comentarios__sistema" : ""}>
-                  <span className="pub-comentarios__meta">
-                    {c.autor} · {formatearFecha(c.fecha)}
-                  </span>
-                  {c.texto}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
+      {resultado && <section className="sa-result" aria-live="polite">
+        <div className="sa-result-head"><h3>Resultado de tu solicitud</h3><span className={`sa-status sa-status-${resultado.estado?.toLowerCase()}`}>{etiquetaEstado(resultado.estado)}</span></div>
+        {resultado.fechaCreacion && <p><strong>Fecha de envío:</strong> {formatearFecha(resultado.fechaCreacion)}</p>}
+        <p><strong>Comentarios del administrador:</strong> {resultado.comentarioAdministrador || "Todavía no hay comentarios."}</p>
+        {resultado.estado === "ACEPTADA" && <p>Tu solicitud fue aceptada. Contacta al administrador para coordinar tus credenciales. <Link to="/">Volver al login</Link>.</p>}
+      </section>}
     </>
   );
 }
 
-function SolicitudAccesoPage() {
-  const navigate = useNavigate();
+export default function SolicitudAccesoPage() {
   const [params, setParams] = useSearchParams();
-  const tabParam = params.get("tab");
-  const tab = TABS.includes(tabParam) ? tabParam : "enviar";
-
-  // Datos de la última solicitud enviada, para no volver a escribirlos en las otras pestañas.
+  const tab = params.get("tab") === "estado" ? "estado" : "enviar";
   const [reciente, setReciente] = useState({ correo: "", codigo: "" });
-
-  function irA(nuevaTab) {
-    setParams({ tab: nuevaTab });
-  }
-
-  const itemsNav = [
-    { id: "enviar", texto: "Solicitar acceso", icono: "send" },
-    { id: "estado", texto: "Estado de solicitud", icono: "search" },
-  ];
-
-  const titulos = {
-    enviar: ["Solicitar acceso", "Completa el formulario. Un administrador revisará tu solicitud y te avisaremos por correo."],
-    estado: ["Estado de solicitud", "Ingresa tu correo y el código que te enviamos para ver el estado y los comentarios."],
+  const [mostrarCodigo, setMostrarCodigo] = useState(false);
+  const cambiarTab = (nuevo) => setParams({ tab: nuevo });
+  const creada = (datos) => {
+    setReciente(datos);
+    setMostrarCodigo(true);
+    cambiarTab("estado");
   };
 
   return (
-    <div className="pub-app">
-      <nav className="pub-rail" aria-label="Accesos rápidos">
-        <button type="button" className="pub-rail__btn" aria-label="Ir al inicio de sesión" onClick={() => navigate("/")}>
-          <Icon nombre="home" size={20} />
-          <span className="pub-rail__texto">Inicio de sesión</span>
-        </button>
-        {itemsNav.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            className={`pub-rail__btn ${tab === item.id ? "activo" : ""}`}
-            aria-label={item.texto}
-            onClick={() => irA(item.id)}
-          >
-            <Icon nombre={item.icono} size={20} />
-            <span className="pub-rail__texto">{item.texto}</span>
-          </button>
-        ))}
-      </nav>
-
-      <div className="pub-cuerpo">
-        <div className="pub-grid">
-          <main className="pub-main">
-            <FechaHora className="pub-fecha" />
-            <h1 className="pub-titulo">{titulos[tab][0]}</h1>
-            <p className="pub-intro">{titulos[tab][1]}</p>
-
-            <section className="pub-tarjeta">
-              <div className="pub-tarjeta__color">
-                <Ilustracion tipo={tab === "estado" ? "estado" : "enviar"} />
-              </div>
-              <div className="pub-tarjeta__contenido">
-                <h2 className="pub-tarjeta__titulo">
-                  {tab === "enviar" ? "Formulario de solicitud" : "Consulta con tu código"}
-                </h2>
-                {tab === "enviar" && (
-                  <FormularioEnvio
-                    onEnviada={(solicitud) => {
-                      setReciente({ correo: solicitud.correo, codigo: "" });
-                      irA("estado");
-                    }}
-                  />
-                )}
-                {tab === "estado" && <ConsultaEstado correoInicial={reciente.correo} codigoInicial={reciente.codigo} />}
-              </div>
-            </section>
-          </main>
-        </div>
-      </div>
+    <div className="sa-page">
+      <header className="sa-header">
+        <Link to="/" className="sa-back">← Volver al inicio de sesión</Link>
+        <span className="sa-brand">AquaChile · Acceso</span>
+      </header>
+      <main className="sa-main">
+        <div className="sa-intro"><FechaHora /><h1>Solicitud de acceso</h1><p>Solicita una cuenta para acceder al sistema o consulta el estado de una solicitud existente.</p></div>
+        <nav className="sa-tabs" aria-label="Solicitud de acceso">
+          <button type="button" className={tab === "enviar" ? "sa-tab active" : "sa-tab"} aria-current={tab === "enviar" ? "page" : undefined} onClick={() => cambiarTab("enviar")}>Solicitud</button>
+          <button type="button" className={tab === "estado" ? "sa-tab active" : "sa-tab"} aria-current={tab === "estado" ? "page" : undefined} onClick={() => cambiarTab("estado")}>Estado de solicitud</button>
+        </nav>
+        <section className="sa-card">
+          <div className="sa-card-heading"><div className="sa-symbol" aria-hidden="true">{tab === "enviar" ? "✉" : "⌕"}</div><div><h2>{tab === "enviar" ? "Formulario de solicitud" : "Consulta tu solicitud"}</h2><p>{tab === "enviar" ? "Completa tus datos. Un administrador revisará tu solicitud." : "Ingresa tu correo y el código recibido al registrarte."}</p></div></div>
+          {tab === "enviar" ? <Formulario alCrear={creada} /> : <>
+            {mostrarCodigo && <div className="sa-success" role="status"><strong>Solicitud registrada correctamente.</strong><p>Guarda tu código de seguimiento. Lo necesitarás para consultar el estado de tu solicitud.</p><div className="sa-code">{reciente.codigo}</div><button type="button" className="sa-copy" onClick={() => navigator.clipboard?.writeText(reciente.codigo)}>Copiar código</button><p className="sa-small">Por ahora, el código se muestra aquí; el backend todavía no envía correos automáticamente.</p></div>}
+            <Estado key={`${reciente.correo}-${reciente.codigo}`} inicial={reciente} />
+          </>}
+        </section>
+      </main>
     </div>
   );
 }
-
-export default SolicitudAccesoPage;

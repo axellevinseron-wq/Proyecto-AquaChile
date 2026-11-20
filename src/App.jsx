@@ -1,42 +1,29 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import OpcionesPanel from "./components/OpcionesPanel";
 import { FONDOS } from "./fondos";
 import { coloresDesde, useOpciones } from "./opciones";
-import { AVISO_SESION_VENCIDA } from "./api";
-import { cerrarSesion, reiniciarDatos } from "./auth";
+import { marcarConexion, marcarDesconexion } from "./auth";
+import { leerSesionApi, guardarSesionApi } from "./apiClient";
 import { usePresenciaPropia } from "./usePresencia";
-import { useSincronizacion } from "./useDatosAcceso";
 import AppNavbar from "./components/AppNavbar";
 import Sidebar from "./components/Sidebar";
 import PerfilPanel from "./components/PerfilPanel";
 import DashboardPage from "./pages/DashboardPage";
 import LoginPage from "./pages/LoginPage";
 import SolicitudAccesoPage from "./pages/SolicitudAccesoPage";
+import OportunidadesPage from "./pages/OportunidadesPage";
 import { ToastProvider, useToast } from "./components/Toast";
 
 const ES_ESCRITORIO = "(min-width: 768px)";
 
 function AppInterna() {
-  const [usuario, setUsuario] = useState(null);
+  const [usuario, setUsuario] = useState(leerSesionApi);
   const navigate = useNavigate();
   const location = useLocation();
   const { notificar } = useToast();
   const [opciones, setOpciones] = useOpciones();
   usePresenciaPropia(usuario?.usuario);
-  useSincronizacion(Boolean(usuario));
-
-  // Si el servidor ya no reconoce la sesión (venció o se reinició), se vuelve al login.
-  useEffect(() => {
-    function alVencer() {
-      reiniciarDatos();
-      setUsuario(null);
-      navigate("/inicio");
-      notificar("Tu sesión venció. Vuelve a iniciar sesión.", "error");
-    }
-    window.addEventListener(AVISO_SESION_VENCIDA, alVencer);
-    return () => window.removeEventListener(AVISO_SESION_VENCIDA, alVencer);
-  }, [navigate, notificar]);
 
   const [sidebarAbierto, setSidebarAbierto] = useState(
     () => window.matchMedia(ES_ESCRITORIO).matches,
@@ -48,6 +35,10 @@ function AppInterna() {
     }
   }
 
+  if (location.pathname === "/oportunidades") {
+    return <OportunidadesPage />;
+  }
+
   // Página pública: no necesita iniciar sesión.
   if (location.pathname === "/solicitud") {
     return <SolicitudAccesoPage />;
@@ -57,6 +48,7 @@ function AppInterna() {
     return (
       <LoginPage
         onLogin={(sesion) => {
+          marcarConexion(sesion.usuario);
           setUsuario(sesion);
           notificar(`Sesión iniciada. ¡Bienvenido, ${sesion.usuario}!`);
         }}
@@ -79,6 +71,7 @@ function AppInterna() {
       }}
     >
       <AppNavbar
+        opciones={opciones}
         sidebarAbierto={sidebarAbierto}
         onToggleSidebar={() => setSidebarAbierto((abierto) => !abierto)}
       />
@@ -87,7 +80,8 @@ function AppInterna() {
         onNavegar={cerrarEnMovil}
         onVerPerfil={() => navigate("/perfil")}
         onCerrarSesion={() => {
-          cerrarSesion();
+          marcarDesconexion(usuario.usuario);
+          guardarSesionApi(null);
           setUsuario(null);
           navigate("/inicio");
           notificar("Sesión cerrada correctamente.");

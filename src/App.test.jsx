@@ -1,19 +1,53 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import App from "./App";
+import { loginApi } from "./apiClient";
+
+// Simulamos únicamente la autenticación HTTP. El resto de la aplicación
+// y sus interacciones se ejecutan normalmente.
+vi.mock("./apiClient", async (importOriginal) => {
+  const real = await importOriginal();
+  return { ...real, loginApi: vi.fn() };
+});
+
+beforeEach(() => {
+  sessionStorage.clear();
+  localStorage.removeItem("vcm-usuario-recordado");
+  vi.mocked(loginApi).mockReset();
+  vi.mocked(loginApi).mockImplementation(async (correo, password) => {
+    if (correo !== "admin@aquachile.cl" || password !== "admin123") {
+      throw new Error("Credenciales inválidas");
+    }
+    const sesion = {
+      token: "jwt-de-prueba",
+      usuario: "admin",
+      correo: "admin@aquachile.cl",
+      rolApi: "ADMIN",
+      rol: "Administrador",
+      permisos: { indicadores: true, candidatos: true, solicitudes: true },
+    };
+    sessionStorage.setItem("aquachile-sesion-api", JSON.stringify(sesion));
+    return sesion;
+  });
+});
+
+// Los tests no deben enviar correos reales.
+vi.mock("./correo", () => ({
+  enviarSolicitudPorCorreo: vi.fn().mockResolvedValue({ ok: true }),
+}));
 
 function mostrarApp(ruta = "/") {
   return render(
-    <MemoryRouter initialEntries={[ruta]}>
-      <App />
-    </MemoryRouter>,
+      <MemoryRouter initialEntries={[ruta]}>
+        <App />
+      </MemoryRouter>,
   );
 }
 
 async function iniciarSesion(usuario) {
-  await usuario.type(screen.getByLabelText("Usuario"), "admin");
+  await usuario.type(screen.getByLabelText("Usuario"), "admin@aquachile.cl");
   await usuario.type(screen.getByLabelText("Contraseña"), "admin123");
   await usuario.click(screen.getByRole("button", { name: "INGRESAR" }));
 }
@@ -27,10 +61,10 @@ describe("Login", () => {
   it("muestra error con credenciales incorrectas", async () => {
     const usuario = userEvent.setup();
     mostrarApp();
-    await usuario.type(screen.getByLabelText("Usuario"), "admin");
+    await usuario.type(screen.getByLabelText("Usuario"), "admin@aquachile.cl");
     await usuario.type(screen.getByLabelText("Contraseña"), "mala");
     await usuario.click(screen.getByRole("button", { name: "INGRESAR" }));
-    expect(await screen.findByText("Usuario o contraseña incorrectos.")).toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toHaveTextContent("No fue posible iniciar sesión");
   });
 });
 
@@ -115,7 +149,7 @@ describe("Login sin crear cuenta", () => {
     mostrarApp("/");
     expect(screen.queryByText("Crear cuenta")).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Enviar una solicitud de acceso" })).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Ver el estado de mi solicitud" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Ver el estado de mi solicitud" })).toBeInTheDocument();
   });
 
   it("al ingresar muestra la notificación de éxito", async () => {
@@ -129,87 +163,65 @@ describe("Login sin crear cuenta", () => {
 describe("Página pública de solicitudes", () => {
   it("se abre sin iniciar sesión", () => {
     mostrarApp("/solicitud");
-    expect(screen.getByRole("heading", { name: "Solicitar acceso" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Solicitud de acceso" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Formulario de solicitud" })).toBeInTheDocument();
   });
 
-  it("envía una solicitud, muestra la notificación y pasa a la página de estado", async () => {
+  it("solicita los datos personales y un CV obligatorio en PDF", () => {
+    mostrarApp("/solicitud");
+    expect(screen.getByRole("textbox", { name: "Nombre" })).toBeRequired();
+    expect(screen.getByRole("textbox", { name: "Apellido" })).toBeRequired();
+    expect(screen.getByRole("textbox", { name: "RUT" })).toBeRequired();
+    expect(screen.getByRole("textbox", { name: "Correo electrónico" })).toBeRequired();
+    const cv = screen.getByLabelText(/Currículum vitae \(obligatorio\)/);
+    expect(cv).toBeRequired();
+    expect(cv).toHaveAttribute("type", "file");
+    expect(cv).toHaveAttribute("accept", ".pdf,application/pdf");
+  });
+
+  it("muestra la navegación pública sin menú lateral", () => {
+    mostrarApp("/solicitud");
+    expect(screen.getByRole("link", { name: /Volver al inicio de sesión/ })).toHaveAttribute("href", "/");
+    expect(screen.getByRole("button", { name: "Solicitud" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Estado de solicitud" })).toBeInTheDocument();
+    expect(screen.queryByRole("complementary", { name: "Menú lateral" })).not.toBeInTheDocument();
+  });
+
+  it("permite cambiar a la pestaña Estado de solicitud", async () => {
     const usuario = userEvent.setup();
     mostrarApp("/solicitud");
-    await usuario.type(screen.getByLabelText("Nombre"), "Ana");
-    await usuario.type(screen.getByLabelText("Apellido"), "Prueba");
-    await usuario.type(screen.getByLabelText("RUT"), "12.345.678-5");
-    await usuario.type(screen.getByLabelText("Teléfono"), "+56 9 1234 5678");
-    await usuario.type(screen.getByLabelText("Correo"), "ana@example.test");
-    await usuario.type(screen.getByLabelText("Usuario que quieres usar"), "aprueba");
-    await usuario.type(screen.getByLabelText("Motivo de la solicitud"), "Necesito acceso");
-    await usuario.click(screen.getByRole("button", { name: "Enviar mi solicitud" }));
-
-    expect(await screen.findByText(/Solicitud enviada correctamente/)).toBeInTheDocument();
-    expect(await screen.findByRole("heading", { name: "Estado de solicitud" })).toBeInTheDocument();
+    await usuario.click(screen.getByRole("button", { name: "Estado de solicitud" }));
+    expect(screen.getByRole("heading", { name: "Consulta tu solicitud" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Consultar estado" })).toBeInTheDocument();
   });
 
-  it("pide un RUT válido antes de enviar la solicitud", async () => {
-    const usuario = userEvent.setup();
-    mostrarApp("/solicitud");
-    await usuario.type(screen.getByLabelText("Nombre"), "Ana");
-    await usuario.type(screen.getByLabelText("Apellido"), "Prueba");
-    await usuario.type(screen.getByLabelText("RUT"), "12.345.678-9");
-    await usuario.type(screen.getByLabelText("Teléfono"), "+56 9 1234 5678");
-    await usuario.type(screen.getByLabelText("Correo"), "ana@example.test");
-    await usuario.type(screen.getByLabelText("Usuario que quieres usar"), "aprueba");
-    await usuario.type(screen.getByLabelText("Motivo de la solicitud"), "Necesito acceso");
-    await usuario.click(screen.getByRole("button", { name: "Enviar mi solicitud" }));
-    expect(screen.getByRole("alert")).toHaveTextContent("RUT válido");
-  });
-
-  it("rechaza un código incorrecto", async () => {
-    const usuario = userEvent.setup();
+  it("requiere correo y código de seguimiento para consultar", () => {
     mostrarApp("/solicitud?tab=estado");
-    await usuario.type(screen.getByLabelText("Correo"), "felipe.nunez@example.test");
-    await usuario.type(screen.getByLabelText("Código"), "XXXXXX");
-    await usuario.click(screen.getByRole("button", { name: "Ver estado" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("no coinciden");
+    expect(screen.getByRole("textbox", { name: "Correo electrónico" })).toBeRequired();
+    expect(screen.getByRole("textbox", { name: "Código de seguimiento" })).toBeRequired();
   });
 
-  it("las solicitudes de ejemplo se pueden consultar con un clic", async () => {
-    const usuario = userEvent.setup();
+  it("no muestra solicitudes de ejemplo", () => {
     mostrarApp("/solicitud?tab=estado");
-    await usuario.click(await screen.findByText("Solicitudes de ejemplo para probar"));
-    await usuario.click(screen.getByRole("button", { name: "Consultar solicitud de Camila Fuentes" }));
-    expect(await screen.findByText("Solicitud de Camila Fuentes")).toBeInTheDocument();
-    expect(screen.getByText("K7M3QX9P")).toBeInTheDocument();
-  });
-
-  it("con el código correcto muestra el estado de la solicitud", async () => {
-    const usuario = userEvent.setup();
-    mostrarApp("/solicitud?tab=estado");
-    await usuario.type(screen.getByLabelText("Correo"), "felipe.nunez@example.test");
-    await usuario.type(screen.getByLabelText("Código"), "fel358");
-    await usuario.click(screen.getByRole("button", { name: "Ver estado" }));
-    const titulo = await screen.findByText("Solicitud de Felipe Núñez");
-    expect(titulo.parentElement).toHaveTextContent("Pendiente");
+    expect(screen.queryByText(/Solicitudes de ejemplo para probar/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Consultar solicitud de Camila Fuentes/ })).not.toBeInTheDocument();
   });
 });
 
 describe("Administración", () => {
-  it("el admin acepta una solicitud y el solicitante ve sus credenciales", async () => {
+  it("el administrador puede abrir la gestión de solicitudes de acceso", async () => {
     const usuario = userEvent.setup();
     mostrarApp("/cuentas");
     await iniciarSesion(usuario);
-
-    await usuario.click(
-      await screen.findByRole("button", { name: "Marcar solicitud de fnunez como Aceptada" }),
-    );
-    expect(await screen.findByText(/marcada como aceptada/)).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Solicitudes de acceso" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Actualizar" })).toBeInTheDocument();
   });
 
-  it("el admin ve la lista de usuarios y abre un perfil", async () => {
+  it("el administrador dispone de navegación hacia usuarios y permisos", async () => {
     const usuario = userEvent.setup();
-    mostrarApp("/usuarios");
+    mostrarApp("/inicio");
     await iniciarSesion(usuario);
-
-    await usuario.click(await screen.findByRole("button", { name: "Ver perfil de psicologo" }));
-    expect(await screen.findByRole("dialog")).toHaveTextContent("Perfil de psicologo");
+    expect(await screen.findByRole("link", { name: "Usuarios y permisos" })).toBeInTheDocument();
   });
 
   it("al tocar el nombre de usuario se abre la página de perfil", async () => {

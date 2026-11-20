@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { avisarDesconexion, registrarLatido } from "./auth";
+import { marcarDesconexion, registrarLatido } from "./auth";
 
 // Devuelve la hora actual y se actualiza cada "ms" milisegundos (sirve para recalcular estados).
 export function useReloj(ms) {
@@ -26,17 +26,17 @@ export function usePresenciaPropia(nombre) {
       const ahora = Date.now();
       if (ahora - ultimaMarca > 15000) {
         ultimaMarca = ahora;
-        registrarLatido(true);
+        registrarLatido(nombre, true);
       }
     }
     function alSalir() {
-      avisarDesconexion();
+      marcarDesconexion(nombre, false);
     }
 
     const eventos = ["click", "keydown", "mousemove", "scroll", "touchstart"];
     eventos.forEach((e) => window.addEventListener(e, actividad, { passive: true }));
     window.addEventListener("pagehide", alSalir);
-    const latido = setInterval(() => registrarLatido(false), 30000);
+    const latido = setInterval(() => registrarLatido(nombre, false), 30000);
 
     return () => {
       eventos.forEach((e) => window.removeEventListener(e, actividad));

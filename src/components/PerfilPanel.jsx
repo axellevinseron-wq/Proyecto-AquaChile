@@ -5,7 +5,7 @@ import { actualizarPerfil, obtenerUsuarios, PERMISOS, permisosDe } from "../auth
 import { useDatosAcceso } from "../useDatosAcceso";
 import { correoValido, rutValido, telefonoValido } from "../logica";
 
-// Reduce la imagen elegida para que ocupe poco al guardarse en el servidor.
+// Reduce la imagen elegida para que ocupe poco en localStorage.
 function reducirImagen(archivo, anchoMax, altoMax) {
   return new Promise((resolver, rechazar) => {
     const lector = new FileReader();
@@ -80,8 +80,8 @@ function PerfilPanel({ sesion }) {
     };
   }
 
-  async function guardarCampos(cambios, mensaje) {
-    const resultado = await actualizarPerfil(usuario.usuario, {
+  function guardarCampos(cambios, mensaje) {
+    const resultado = actualizarPerfil(usuario.usuario, {
       nombre: usuario.nombre ?? "",
       correo: usuario.correo ?? "",
       telefono: usuario.telefono ?? "",
@@ -90,12 +90,7 @@ function PerfilPanel({ sesion }) {
       banner: usuario.banner,
       ...cambios,
     });
-    if (resultado.ok) {
-      notificar(mensaje);
-    } else {
-      notificar(resultado.error, "error");
-    }
-    return resultado.ok;
+    if (resultado.ok) notificar(mensaje);
   }
 
   function empezarEdicion() {
@@ -109,14 +104,13 @@ function PerfilPanel({ sesion }) {
     setEditando(true);
   }
 
-  async function guardar(evento) {
+  function guardar(evento) {
     evento.preventDefault();
     const encontrados = validar(formulario);
     setErrores(encontrados);
     if (Object.keys(encontrados).length) return;
-    if (await guardarCampos(formulario, "Tus datos se guardaron correctamente.")) {
-      setEditando(false);
-    }
+    guardarCampos(formulario, "Tus datos se guardaron correctamente.");
+    setEditando(false);
   }
 
   return (

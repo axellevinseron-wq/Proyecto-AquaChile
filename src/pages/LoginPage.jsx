@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import Icon from "../components/Icon";
-import { iniciarSesion } from "../auth";
+import { tieneSolicitudPendiente } from "../auth";
+import { loginApi } from "../apiClient";
 
 const CLAVE_USUARIO = "vcm-usuario-recordado";
 
@@ -30,7 +31,6 @@ function LoginPage({ onLogin }) {
   const [clave, setClave] = useState("");
   const [recordar, setRecordar] = useState(() => leerUsuarioRecordado() !== "");
   const [mensaje, setMensaje] = useState("");
-  const [entrando, setEntrando] = useState(false);
 
   async function enviar(evento) {
     evento.preventDefault();
@@ -41,19 +41,17 @@ function LoginPage({ onLogin }) {
       return;
     }
 
-    setEntrando(true);
-    const resultado = await iniciarSesion(nombre, clave);
-    setEntrando(false);
-    if (!resultado.ok) {
-      setMensaje(
-        resultado.pendiente
-          ? "Tu solicitud de cuenta aún está pendiente de aprobación."
-          : resultado.error,
-      );
+    let sesion;
+    try {
+      sesion = await loginApi(nombre, clave);
+    } catch {
+      setMensaje(tieneSolicitudPendiente(nombre)
+        ? "Tu solicitud de cuenta aún está pendiente de aprobación."
+        : "No fue posible iniciar sesión. Revisa tus credenciales y la conexión con el servidor.");
       return;
     }
     guardarUsuarioRecordado(recordar ? nombre : "");
-    onLogin(resultado.sesion);
+    onLogin(sesion);
   }
 
   return (
@@ -70,9 +68,9 @@ function LoginPage({ onLogin }) {
           <label className="visually-hidden" htmlFor="login-usuario">Usuario</label>
           <input
             id="login-usuario"
-            type="text"
+            type="email"
             autoComplete="username"
-            placeholder="Usuario"
+            placeholder="Correo electrónico"
             value={usuario}
             onChange={(evento) => {
               setUsuario(evento.target.value);
@@ -116,7 +114,7 @@ function LoginPage({ onLogin }) {
           </label>
         </div>
 
-        <button type="submit" className="login-boton" disabled={entrando}>
+        <button type="submit" className="login-boton">
           INGRESAR
         </button>
 
