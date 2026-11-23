@@ -8,6 +8,7 @@ import { apiFetch } from "../apiClient";
 const ENLACES = [
   { id: "indicadores", texto: "Indicadores", permisos: ["indicadores"] },
   { id: "candidatos", texto: "Candidatos y solicitudes", permisos: ["candidatos", "solicitudes"], rutas: ["candidatos", "solicitudes"] },
+  { id:"ofertas", texto:"Ofertas laborales", roles:["ADMIN","ANALISTA_RECLUTAMIENTO","EVALUADOR"],},
   { id: "evaluacion-cv", texto: "Evaluación de CV con IA", permisos: ["candidatos"] },
 ];
 
@@ -51,13 +52,31 @@ function Sidebar({ sesion, onNavegar, onCerrarSesion, onVerPerfil }) {
     };
   }, [esAdmin, pathname]);
 
-  const enlaces = ENLACES.filter((enlace) =>
-      enlace.permisos.some((permiso) => sesion.permisos?.[permiso] !== false),
-  ).map((enlace) => {
-    const destino = enlace.id === "evaluacion-cv"
-        ? "evaluacion-cv"
-        : enlace.permisos.find((permiso) => sesion.permisos?.[permiso] !== false);
-    return { ...enlace, destino };
+
+
+  const enlaces = ENLACES.filter((enlace) => {
+  if (enlace.roles) {
+    return enlace.roles.includes(
+      sesion.rolApi
+    );
+  }
+
+  return enlace.permisos.some((permiso) =>
+    sesion.permisos?.[permiso] !== false);
+  
+  }).map((enlace) => {
+
+  let destino = enlace.id;
+
+  if (enlace.id === "candidatos") {destino = enlace.permisos.find((permiso) =>
+        sesion.permisos?.[permiso] !== false
+    );
+  }
+
+  return {
+    ...enlace,
+    destino,
+  };
   });
 
   return (
