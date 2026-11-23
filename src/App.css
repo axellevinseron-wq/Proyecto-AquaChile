@@ -1,0 +1,53 @@
+/* 
+   PORTAL PUBLICO DE OPORTUNIDADES 
+*/
+
+.portal-empleo {
+  min-height: 100vh;
+  background: #f5f7fa;
+}
+
+.portal-header {
+  background:
+    linear-gradient(
+      90deg,
+      #063b65,
+      #0878b9
+    );
+
+  color: white;
+}
+
+.portal-hero {
+  background:
+    linear-gradient(
+      135deg,
+      #e9f5fb,
+      #f8fbfd
+    );
+
+  border-bottom:
+    1px solid #dce5eb;
+}
+
+.oferta-publica-card {
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.oferta-publica-card:hover {
+  transform:
+    translateY(-4px);
+
+  box-shadow:
+    0 8px 20px
+    rgba(0, 0, 0, 0.12)
+    !important;
+}
+
+.portal-footer {
+  margin-top: 50px;
+  background: #143c5c;
+  color: white;
+}

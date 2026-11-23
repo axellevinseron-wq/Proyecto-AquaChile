@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
+import OfertasPanel from "../components/OfertasPanel";
 import IndicadorCard from "../components/IndicadorCard";
 import GestionPostgreSQL from "../components/GestionPostgreSQL";
 import Calendario from "../components/Calendario";
@@ -16,7 +17,7 @@ import { apiFetch } from "../apiClient";
 import { hoyClave } from "../fechas";
 import { calcularIndicadores } from "../logica";
 
-const VISTAS = ["inicio", "indicadores", "candidatos", "solicitudes", "evaluacion-cv"];
+const VISTAS = ["inicio", "indicadores", "candidatos", "solicitudes","ofertas", "evaluacion-cv"];
 // Secciones que solo ven los administradores.
 const VISTAS_ADMIN = ["cuentas", "usuarios"];
 
@@ -92,10 +93,20 @@ function DashboardPage({ sesion }) {
 
   // Si la URL no es una sección válida, o el usuario no tiene permiso para verla, vuelve al inicio.
   const esVistaAdmin = VISTAS_ADMIN.includes(vista);
+
+  const esVistaOfertas =vista === "ofertas";
+
+  const rolPuedeVerOfertas = ["ADMIN","ANALISTA_RECLUTAMIENTO","EVALUADOR",].includes(sesion.rolApi);
+
   const permitida =
+
       vista === "inicio" ||
-      (VISTAS.includes(vista) && sesion.permisos?.[vista === "evaluacion-cv" ? "candidatos" : vista] !== false) ||
+      (esVistaOfertas && rolPuedeVerOfertas)||
+
+      (VISTAS.includes(vista) && !esVistaOfertas && 
+      sesion.permisos?.[vista === "evaluacion-cv" ? "candidatos" : vista] !== false) ||
       (esVistaAdmin && esAdmin);
+  
   if (!permitida) {
     return <Navigate to="/inicio" replace />;
   }
@@ -204,6 +215,8 @@ function DashboardPage({ sesion }) {
               <GestionPostgreSQL key={vista} vista={vista} sesion={sesion} />
             </>
         )}
+
+        {vista === "ofertas" && (<OfertasPanel sesion={sesion} />)}
 
         {vista === "evaluacion-cv" && <EvaluacionCvPage />}
 
