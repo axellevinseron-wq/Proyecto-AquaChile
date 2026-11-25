@@ -18,11 +18,13 @@ try {
 
 const puerto = Number(process.env.PORT) || 3001;
 const archivoDatos = resolve(process.env.DATA_FILE ?? join(carpetaServidor, "data", "db.json"));
+const directorioCvs = resolve(process.env.CV_STORAGE_DIR ?? join(carpetaServidor, "data", "cvs"));
 
 const app = crearApp({
   almacen: crearAlmacen(archivoDatos),
   carpetaPublica: join(carpetaServidor, "..", "dist"),
   ejemplosDemo: process.env.EJEMPLOS_DEMO !== "false",
+  directorioCvs,
 });
 
 // Desde Express 5, si el servidor no puede arrancar (por ejemplo, puerto ocupado) el error llega aquí.

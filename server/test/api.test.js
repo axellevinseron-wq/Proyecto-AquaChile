@@ -1,14 +1,19 @@
 // Tests de la API HTTP con un servidor Express real y datos en memoria: npm run test:server
 import { afterEach, beforeEach, describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { crearApp } from "../app.js";
 import { crearClienteGoogleCalendar } from "../googleCalendar.js";
 
 let servidor;
 let url;
 let eventosGoogle;
+let directorioCvs;
 
 beforeEach(async () => {
+  directorioCvs = mkdtempSync(join(tmpdir(), "aquachile-cv-api-"));
   eventosGoogle = [];
   const clienteGoogleCalendar = {
     async obtenerOrganizador(token) {
@@ -32,7 +37,7 @@ beforeEach(async () => {
       eventosGoogle.push({ tipo: "eliminar", token, id });
     },
   };
-  servidor = crearApp({ clienteCorreo: null, clienteGoogleCalendar }).listen(0, "127.0.0.1");
+  servidor = crearApp({ clienteCorreo: null, clienteGoogleCalendar, directorioCvs }).listen(0, "127.0.0.1");
   await new Promise((resolver) => servidor.once("listening", resolver));
   url = `http://127.0.0.1:${servidor.address().port}/api`;
 });
@@ -40,6 +45,7 @@ beforeEach(async () => {
 afterEach(async () => {
   servidor.closeAllConnections();
   await new Promise((resolver) => servidor.close(resolver));
+  rmSync(directorioCvs, { recursive: true, force: true });
 });
 
 async function pedir(metodo, ruta, { cuerpo, token } = {}) {
@@ -53,6 +59,28 @@ async function pedir(metodo, ruta, { cuerpo, token } = {}) {
   });
   const datos = await respuesta.json().catch(() => ({}));
   return { status: respuesta.status, datos };
+}
+
+async function pedirMultipart(ruta, campos, archivo) {
+  const cuerpo = new FormData();
+  for (const [nombre, valor] of Object.entries(campos)) cuerpo.append(nombre, String(valor));
+  if (archivo) {
+    cuerpo.append("cv", new Blob([archivo.contenido], { type: archivo.tipo }), archivo.nombre);
+  }
+  const respuesta = await fetch(`${url}${ruta}`, { method: "POST", body: cuerpo });
+  return { status: respuesta.status, datos: await respuesta.json().catch(() => ({})) };
+}
+
+async function pedirArchivo(ruta, token) {
+  const respuesta = await fetch(`${url}${ruta}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  return {
+    status: respuesta.status,
+    tipo: respuesta.headers.get("content-type"),
+    disposicion: respuesta.headers.get("content-disposition"),
+    archivo: Buffer.from(await respuesta.arrayBuffer()),
+  };
 }
 
 async function ingresar(usuario, clave) {
@@ -245,6 +273,7 @@ describe("Ofertas y postulaciones", () => {
 
     assert.equal(creada.status, 201);
     assert.equal(creada.datos.postulacion.estado, "Recibida");
+    assert.equal(creada.datos.postulacion.cv, undefined);
     assert.equal((await pedir("POST", "/postulaciones", {
       cuerpo: {
         ofertaId: oferta.id,
@@ -259,6 +288,80 @@ describe("Ofertas y postulaciones", () => {
     assert.equal(privadas.status, 200);
     assert.equal(privadas.datos.items[0].correo, "ana@example.test");
     assert.equal((await pedir("GET", "/admin/postulaciones", { token: await ingresar("psicologo", "psico123") })).status, 403);
+  });
+
+  it("recibe un PDF opcional de hasta 10 MB, limita su acceso al administrador y permite eliminarlo", async () => {
+    const oferta = (await pedir("GET", "/ofertas")).datos.items[0];
+    const contenidoPdf = Buffer.alloc(10 * 1024 * 1024);
+    Buffer.from("%PDF-1.7\n").copy(contenidoPdf);
+    const creada = await pedirMultipart("/postulaciones", {
+      ofertaId: oferta.id,
+      nombre: "Ana CV",
+      correo: "ana-cv@example.test",
+      telefono: "+56 9 1234 5678",
+    }, { contenido: contenidoPdf, tipo: "application/pdf", nombre: "curriculum.pdf" });
+
+    assert.equal(creada.status, 201);
+    const postulacion = creada.datos.postulacion;
+    assert.equal(postulacion.cv, undefined);
+    const admin = await ingresar("admin", "admin123");
+    const postulacionPrivada = (await pedir("GET", "/admin/postulaciones", { token: admin })).datos.items[0];
+    assert.equal(postulacionPrivada.cv.nombre, "curriculum.pdf");
+    assert.equal(postulacionPrivada.cv.tamano, 10 * 1024 * 1024);
+    assert.equal("ruta" in postulacionPrivada.cv, false);
+
+    const rutaCv = `/admin/postulaciones/${postulacion.id}/cv`;
+    assert.equal((await pedirArchivo(rutaCv)).status, 401);
+    assert.equal((await pedirArchivo(rutaCv, await ingresar("psicologo", "psico123"))).status, 403);
+
+    const archivo = await pedirArchivo(rutaCv, admin);
+    assert.equal(archivo.status, 200);
+    assert.match(archivo.tipo, /^application\/pdf/);
+    assert.match(archivo.disposicion, /inline/);
+    assert.deepEqual(archivo.archivo, contenidoPdf);
+
+    const eliminacionSinSesion = await pedir("DELETE", rutaCv);
+    assert.equal(eliminacionSinSesion.status, 401);
+    const eliminacionUsuario = await pedir("DELETE", rutaCv, { token: await ingresar("psicologo", "psico123") });
+    assert.equal(eliminacionUsuario.status, 403);
+    const eliminacion = await pedir("DELETE", rutaCv, { token: admin });
+    assert.equal(eliminacion.status, 200);
+    assert.equal(eliminacion.datos.postulacion.cv, undefined);
+    assert.equal((await pedirArchivo(rutaCv, admin)).status, 404);
+    assert.deepEqual(readdirSync(directorioCvs), []);
+  });
+
+  it("rechaza archivos que no son PDF, firmas falsas y archivos mayores de 10 MB", async () => {
+    const oferta = (await pedir("GET", "/ofertas")).datos.items[0];
+    const campos = {
+      ofertaId: oferta.id,
+      nombre: "Ana Archivo",
+      correo: "ana-archivo@example.test",
+      telefono: "+56 9 1234 5678",
+    };
+
+    const tipoInvalido = await pedirMultipart("/postulaciones", campos, {
+      contenido: Buffer.from("no es un pdf"),
+      tipo: "text/plain",
+      nombre: "curriculum.txt",
+    });
+    assert.equal(tipoInvalido.status, 400);
+
+    const firmaInvalida = await pedirMultipart("/postulaciones", campos, {
+      contenido: Buffer.from("no es un pdf"),
+      tipo: "application/pdf",
+      nombre: "curriculum.pdf",
+    });
+    assert.equal(firmaInvalida.status, 400);
+
+    const demasiadoGrande = await pedirMultipart("/postulaciones", campos, {
+      contenido: Buffer.concat([Buffer.from("%PDF-1.7\n"), Buffer.alloc(10 * 1024 * 1024)]),
+      tipo: "application/pdf",
+      nombre: "curriculum.pdf",
+    });
+    assert.equal(demasiadoGrande.status, 413);
+    assert.deepEqual(readdirSync(directorioCvs), []);
+    assert.deepEqual((await pedir("GET", "/admin/postulaciones", { token: await ingresar("admin", "admin123") })).datos.items, []);
   });
 
   it("agenda, reprograma y cancela una entrevista de Google solo con cuenta autorizada", async () => {

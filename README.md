@@ -51,9 +51,10 @@ En el frontend, `src/api.js` hace las peticiones y `src/auth.js` mantiene una co
 | `GET /api/invitaciones/:token` | público | Comprueba una invitación sin revelar el hash del token. |
 | `POST /api/invitaciones/:token/aceptar` | público | Configura la contraseña y consume la invitación una sola vez. |
 | `GET /api/ofertas` · `/ofertas/:id` | público | Lista ofertas publicadas y consulta su detalle. |
-| `POST /api/postulaciones` | público | Envía una postulación a una oferta vigente. |
+| `POST /api/postulaciones` | público | Envía una postulación a una oferta vigente; acepta un CV PDF opcional de hasta 10 MB. |
 | `GET/POST /api/admin/ofertas` · `PATCH /api/admin/ofertas/:id` | admin | Consulta, crea y actualiza ofertas. |
 | `GET /api/admin/postulaciones` · `PATCH /api/admin/postulaciones/:id/estado` | admin | Revisa postulaciones y actualiza su estado. |
+| `GET/DELETE /api/admin/postulaciones/:id/cv` | admin | Consulta en línea o elimina el CV privado de una postulación. |
 | `POST/PATCH/DELETE /api/admin/postulaciones/:id/entrevista` | admin | Agenda, reprograma o cancela una entrevista de Google Calendar/Meet. |
 | `GET/PUT /api/colecciones/candidatos` y `/solicitudes` | sesión (PUT con permiso de la sección) | Lista de candidatos y de solicitudes de evaluación. |
 
@@ -63,13 +64,14 @@ En el frontend, `src/api.js` hace las peticiones y `src/auth.js` mantiene una co
 - `/acceso` es la entrada al sistema interno; el portal público enlaza allí como «Acceso equipo».
 - El panel interno tiene secciones de administración para ofertas y postulaciones, disponibles solo para administradores.
 - En «Postulaciones», al cambiar una postulación a «Entrevista», un administrador puede agendar, reprogramar o cancelar la cita en el calendario principal de su cuenta Google. El acceso OAuth se usa solo durante la operación; no se guarda el token.
+- El formulario público permite adjuntar un CV opcional en PDF (máximo 10 MB). Los archivos se guardan en `server/data/cvs`, fuera de las carpetas públicas; `CV_STORAGE_DIR` permite definir otro directorio privado. Solo administradores pueden verlos o eliminarlos desde «Postulaciones». Se conservan hasta que un administrador los elimine.
 - Para habilitarlo, configura `VITE_GOOGLE_CLIENT_ID` en `.env` con un cliente OAuth de tipo aplicación web en Google Cloud. Habilita Google Calendar API y agrega los orígenes de desarrollo/producción como orígenes JavaScript autorizados. La autorización solicita correo e `calendar.events`.
 - Las cuentas nuevas se crean por invitación de un administrador. El enlace vence en 24 horas, es de un solo uso y permite que la persona defina su propia contraseña (mínimo 12 caracteres). Los tokens se guardan como hash.
 - Por defecto, las cuentas con rol «Usuario» reciben todos los permisos desactivados; el administrador selecciona los necesarios. Los administradores pueden invitar y revocar desde «Usuarios».
 - Si Resend no está configurado o falla el envío, el panel muestra el enlace para compartirlo directamente con la persona indicada. Configura `APP_BASE_URL` con la URL pública del frontend; para correo, define `RESEND_API_KEY` y un `RESEND_FROM` verificado en Resend.
 - El antiguo formulario y las rutas públicas de solicitud de acceso ya no están disponibles. Los registros históricos existentes en `db.json` se conservan, pero no se publican ni se usan para crear cuentas.
 - Ofertas, postulaciones y solicitudes de evaluación son datos distintos. Las postulaciones no crean automáticamente una evaluación psicolaboral.
-- Las ofertas iniciales están marcadas como ejemplos para la vista de demostración. Las postulaciones guardan nombre, correo, teléfono y mensaje, sin adjuntos.
+- Las ofertas iniciales están marcadas como ejemplos para la vista de demostración. Las postulaciones guardan nombre, correo, teléfono y mensaje; los metadatos del CV se guardan junto a la postulación y el archivo se mantiene separado.
 
 ## Pruebas
 
@@ -86,4 +88,5 @@ npm run test:server  # servidor: reglas del dominio y API HTTP (node:test)
   último guardado. Si el uso real lo requiere, el siguiente paso es pasar a endpoints por registro (crear / cambiar estado).
 - Las ofertas y postulaciones también se guardan en `server/data/db.json`; para un uso real con datos personales conviene
   migrar a una base de datos y definir políticas de privacidad, retención y seguridad antes de publicar el portal.
+- Los currículums contienen datos personales: restringe el acceso al directorio configurado en `CV_STORAGE_DIR` y elimina los archivos cuando ya no sean necesarios.
 - Para pasar a una base de datos real (SQLite, PostgreSQL), solo hay que reemplazar `server/almacen.js`.

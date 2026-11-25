@@ -25,7 +25,12 @@ export function hayToken() {
 // Nunca lanza errores: siempre devuelve { ok, status, datos }. Si el servidor no responde, status es 0.
 export async function pedir(metodo, ruta, cuerpo, { keepalive = false } = {}) {
   const encabezados = { Accept: "application/json" };
-  if (cuerpo !== undefined) {
+  const esFormulario = cuerpo !== null
+    && typeof cuerpo === "object"
+    && typeof cuerpo.append === "function"
+    && typeof cuerpo.get === "function"
+    && typeof cuerpo.entries === "function";
+  if (cuerpo !== undefined && !esFormulario) {
     encabezados["Content-Type"] = "application/json";
   }
   const conSesion = token !== null;
@@ -37,7 +42,7 @@ export async function pedir(metodo, ruta, cuerpo, { keepalive = false } = {}) {
     const respuesta = await fetch(`${base}/api${ruta}`, {
       method: metodo,
       headers: encabezados,
-      body: cuerpo === undefined ? undefined : JSON.stringify(cuerpo),
+      body: cuerpo === undefined ? undefined : esFormulario ? cuerpo : JSON.stringify(cuerpo),
       keepalive,
     });
     const datos = await respuesta.json().catch(() => ({}));
@@ -46,6 +51,30 @@ export async function pedir(metodo, ruta, cuerpo, { keepalive = false } = {}) {
       window.dispatchEvent(new Event(AVISO_SESION_VENCIDA));
     }
     return { ok: respuesta.ok, status: respuesta.status, datos };
+  } catch {
+    return {
+      ok: false,
+      status: 0,
+      datos: { error: "No se pudo conectar con el servidor. Revisa que esté encendido." },
+    };
+  }
+}
+
+export async function pedirArchivo(ruta) {
+  const encabezados = { Accept: "application/pdf" };
+  const conSesion = token !== null;
+  if (conSesion) encabezados.Authorization = `Bearer ${token}`;
+
+  try {
+    const respuesta = await fetch(`${base}/api${ruta}`, { headers: encabezados });
+    if (respuesta.status === 401 && conSesion) {
+      window.dispatchEvent(new Event(AVISO_SESION_VENCIDA));
+    }
+    if (!respuesta.ok) {
+      const datos = await respuesta.json().catch(() => ({}));
+      return { ok: false, status: respuesta.status, datos };
+    }
+    return { ok: true, status: respuesta.status, archivo: await respuesta.blob() };
   } catch {
     return {
       ok: false,

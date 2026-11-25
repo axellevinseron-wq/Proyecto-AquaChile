@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useState } from "react";
-import { pedir } from "../api";
+import { pedir, pedirArchivo } from "../api";
 
 const ESTADOS = ["Recibida", "En revisión", "Entrevista", "Seleccionada", "No seleccionada"];
 const CLIENTE_GOOGLE_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? "";
@@ -30,6 +30,7 @@ function PostulacionesAdminPanel() {
   );
   const [duracionMinutos, setDuracionMinutos] = useState("30");
   const [ocupadaId, setOcupadaId] = useState(null);
+  const [cvSeleccionado, setCvSeleccionado] = useState(null);
 
   useEffect(() => {
     let activo = true;
@@ -47,6 +48,13 @@ function PostulacionesAdminPanel() {
       activo = false;
     };
   }, []);
+
+  useEffect(() => {
+    const url = cvSeleccionado?.url;
+    return () => {
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [cvSeleccionado]);
 
   async function cambiarEstado(id, estado) {
     const respuesta = await pedir("PATCH", `/admin/postulaciones/${id}/estado`, { estado });
@@ -159,6 +167,38 @@ function PostulacionesAdminPanel() {
     });
   }
 
+  async function verCv(item) {
+    setOcupadaId(item.id);
+    setError("");
+    const respuesta = await pedirArchivo(`/admin/postulaciones/${item.id}/cv`);
+    setOcupadaId(null);
+    if (!respuesta.ok) {
+      setError(respuesta.datos?.error ?? "No se pudo abrir el currículum.");
+      return;
+    }
+    setCvSeleccionado({
+      id: item.id,
+      nombre: item.cv.nombre,
+      url: URL.createObjectURL(respuesta.archivo),
+    });
+  }
+
+  async function eliminarCv(item) {
+    if (!window.confirm(`¿Eliminar el currículum de ${item.nombre}?`)) return;
+    setOcupadaId(item.id);
+    setError("");
+    const respuesta = await pedir("DELETE", `/admin/postulaciones/${item.id}/cv`);
+    setOcupadaId(null);
+    if (!respuesta.ok) {
+      setError(respuesta.datos?.error ?? "No se pudo eliminar el currículum.");
+      return;
+    }
+    setPostulaciones((actuales) =>
+      actuales.map((postulacion) => postulacion.id === item.id ? respuesta.datos.postulacion : postulacion),
+    );
+    if (cvSeleccionado?.id === item.id) setCvSeleccionado(null);
+  }
+
   return (
     <section aria-labelledby="titulo-postulaciones">
       <div className="mb-3">
@@ -170,9 +210,25 @@ function PostulacionesAdminPanel() {
         <p role="status">Cargando postulaciones...</p>
       ) : (
         <div className="card card-body caja caja--azul">
+          {cvSeleccionado && (
+            <section className="card card-body mb-3" aria-label={`Currículum de ${cvSeleccionado.nombre}`}>
+              <div className="d-flex justify-content-between align-items-center gap-2 mb-2">
+                <h2 className="h5 mb-0">Currículum: {cvSeleccionado.nombre}</h2>
+                <div className="d-flex gap-2">
+                  <a className="btn btn-sm btn-outline-primary" href={cvSeleccionado.url} download={cvSeleccionado.nombre}>Descargar PDF</a>
+                  <button type="button" className="btn-close" aria-label="Cerrar currículum" onClick={() => setCvSeleccionado(null)} />
+                </div>
+              </div>
+              <iframe
+                title={`Vista previa del currículum ${cvSeleccionado.nombre}`}
+                src={cvSeleccionado.url}
+                style={{ width: "100%", height: "70vh", border: 0 }}
+              />
+            </section>
+          )}
           <div className="table-responsive">
             <table className="table table-hover align-middle mb-0">
-              <thead><tr><th>Postulante</th><th>Oferta</th><th>Fecha</th><th>Estado</th><th>Entrevista</th><th>Mensaje</th></tr></thead>
+              <thead><tr><th>Postulante</th><th>Oferta</th><th>Fecha</th><th>Estado</th><th>Entrevista</th><th>Mensaje</th><th>CV</th></tr></thead>
               <tbody>
                 {postulaciones.map((item) => (
                   <Fragment key={item.id}>
@@ -207,10 +263,22 @@ function PostulacionesAdminPanel() {
                         {item.entrevista?.estado === "Error" && <small className="d-block text-danger mt-1">No se pudo completar la cita.</small>}
                       </td>
                       <td className="admin-empleos__mensaje">{item.mensaje || "—"}</td>
+                      <td>
+                        {item.cv ? (
+                          <div className="d-flex flex-column align-items-start gap-1">
+                            <button type="button" className="btn btn-sm btn-outline-primary" aria-label={`Ver CV de ${item.nombre}`} disabled={ocupadaId === item.id} onClick={() => verCv(item)}>
+                              {ocupadaId === item.id ? "Cargando..." : "Ver CV"}
+                            </button>
+                            <button type="button" className="btn btn-sm btn-outline-danger" disabled={ocupadaId === item.id} onClick={() => eliminarCv(item)}>
+                              Eliminar CV
+                            </button>
+                          </div>
+                        ) : <span className="text-secondary">No adjuntó CV</span>}
+                      </td>
                     </tr>
                     {formularioId === item.id && (
                       <tr key={`entrevista-${item.id}`}>
-                        <td colSpan="6">
+                        <td colSpan="7">
                           <form className="card card-body caja caja--azul p-3" onSubmit={(evento) => enviarEntrevista(evento, item)}>
                             <div className="d-flex justify-content-between align-items-center gap-2 mb-2">
                               <h2 className="h5 mb-0">{item.entrevista?.estado === "Agendada" ? "Reprogramar entrevista" : "Agendar entrevista"}</h2>
@@ -261,7 +329,7 @@ function PostulacionesAdminPanel() {
                     )}
                   </Fragment>
                 ))}
-                {postulaciones.length === 0 && <tr><td colSpan="6" className="text-center text-secondary py-4">Aún no hay postulaciones recibidas.</td></tr>}
+                {postulaciones.length === 0 && <tr><td colSpan="7" className="text-center text-secondary py-4">Aún no hay postulaciones recibidas.</td></tr>}
               </tbody>
             </table>
           </div>

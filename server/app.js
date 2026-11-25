@@ -1,9 +1,12 @@
 // Aplicación Express: API REST bajo /api y, en producción, también sirve el frontend compilado (dist).
 
-import { existsSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
+import { open, readFile, unlink } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import express from "express";
+import multer from "multer";
 import { Resend } from "resend";
 import { crearAlmacen } from "./almacen.js";
 import { crearClienteGoogleCalendar, GoogleCalendarError } from "./googleCalendar.js";
@@ -36,6 +39,19 @@ import {
 } from "./dominio.js";
 
 const MINUTOS = 60 * 1000;
+const MAX_CV_BYTES = 10 * 1024 * 1024;
+const DIRECTORIO_CVS_DEFAULT = join(dirname(fileURLToPath(import.meta.url)), "data", "cvs");
+
+async function esPdf(ruta) {
+  const archivo = await open(ruta, "r");
+  try {
+    const firma = Buffer.alloc(5);
+    const { bytesRead } = await archivo.read(firma, 0, firma.length, 0);
+    return bytesRead === firma.length && firma.toString("ascii") === "%PDF-";
+  } finally {
+    await archivo.close();
+  }
+}
 
 function responder(res, resultado, extra = {}) {
   if (!resultado.ok) {
@@ -55,6 +71,7 @@ export function crearApp({
   carpetaPublica = null,
   clienteCorreo = undefined,
   clienteGoogleCalendar = crearClienteGoogleCalendar(),
+  directorioCvs = DIRECTORIO_CVS_DEFAULT,
 } = {}) {
   const app = express();
   const { requiereSesion, requiereAdmin, requierePermiso } = crearAutenticacion({ almacen, sesiones });
@@ -69,6 +86,41 @@ export function crearApp({
   const limiteLogin = crearLimitador({ max: 10, ventanaMs: 10 * MINUTOS });
   const limitePostulacion = crearLimitador({ max: 20, ventanaMs: 60 * MINUTOS });
   const limiteInvitacion = crearLimitador({ max: 10, ventanaMs: 10 * MINUTOS });
+  mkdirSync(directorioCvs, { recursive: true });
+
+  const recibirArchivoCv = multer({
+    storage: multer.diskStorage({
+      destination: directorioCvs,
+      filename: (_req, _archivo, callback) => callback(null, `${randomUUID()}.pdf`),
+    }),
+    limits: { fileSize: MAX_CV_BYTES, files: 1, fields: 5, fieldSize: 6000, parts: 6 },
+    fileFilter: (_req, archivo, callback) => {
+      const nombre = archivo.originalname.split(/[\\/]/).pop().toLocaleLowerCase("en-US");
+      if (archivo.mimetype !== "application/pdf" || !nombre.endsWith(".pdf")) {
+        const error = new Error("El currículum debe ser un archivo PDF.");
+        error.code = "CV_INVALIDO";
+        callback(error);
+        return;
+      }
+      callback(null, true);
+    },
+  }).single("cv");
+
+  function procesarCargaCv(req, res, next) {
+    if (limitePostulacion.excedido(req.ip)) return demasiadosIntentos(res);
+    recibirArchivoCv(req, res, (error) => {
+      if (!error) return next();
+      limitePostulacion.contar(req.ip);
+      if (error instanceof multer.MulterError) {
+        if (error.code === "LIMIT_FILE_SIZE") {
+          return res.status(413).json({ error: "El currículum no puede superar los 10 MB." });
+        }
+        return res.status(400).json({ error: "Solo puedes adjuntar un archivo PDF como currículum." });
+      }
+      if (error.code === "CV_INVALIDO") return res.status(400).json({ error: error.message });
+      return next(error);
+    });
+  }
 
   app.disable("x-powered-by");
   app.use((req, res, next) => {
@@ -265,20 +317,108 @@ export function crearApp({
     return responder(res, resultado, { oferta: resultado.oferta });
   });
 
-  api.post("/postulaciones", (req, res) => {
-    if (limitePostulacion.excedido(req.ip)) return demasiadosIntentos(res);
+  api.post("/postulaciones", procesarCargaCv, async (req, res) => {
+    if (req.file) {
+      let firmaValida;
+      try {
+        firmaValida = await esPdf(req.file.path);
+      } catch (error) {
+        await unlink(req.file.path);
+        throw error;
+      }
+      if (!firmaValida) {
+        await unlink(req.file.path);
+        limitePostulacion.contar(req.ip);
+        return res.status(400).json({ error: "El archivo adjunto no es un PDF válido." });
+      }
+    }
+
     const resultado = crearPostulacion(datos(), req.body ?? {});
     if (!resultado.ok) {
+      if (req.file) await unlink(req.file.path);
       if (resultado.status !== 409 && resultado.status !== 404) limitePostulacion.contar(req.ip);
       return responder(res, resultado);
     }
+
+    if (req.file) {
+      const nombreOriginal = req.file.originalname
+        .split(/[\\/]/)
+        .pop()
+        .slice(0, 200);
+      resultado.postulacion.cv = {
+        archivoId: req.file.filename.slice(0, -4),
+        nombre: nombreOriginal || "curriculum.pdf",
+        tamano: req.file.size,
+        tipo: "application/pdf",
+        subidoEn: new Date().toISOString(),
+      };
+    }
+
+    try {
+      almacen.guardar();
+    } catch (error) {
+      const indice = datos().postulaciones.indexOf(resultado.postulacion);
+      if (indice !== -1) datos().postulaciones.splice(indice, 1);
+      if (req.file) await unlink(req.file.path);
+      throw error;
+    }
     limitePostulacion.contar(req.ip);
-    almacen.guardar();
-    return res.status(201).json({ postulacion: resultado.postulacion });
+    const postulacionPublica = { ...resultado.postulacion };
+    delete postulacionPublica.cv;
+    return res.status(201).json({ postulacion: postulacionPublica });
   });
 
   api.get("/admin/postulaciones", requiereSesion, requiereAdmin, (req, res) => {
     res.json({ items: datos().postulaciones });
+  });
+
+  api.get("/admin/postulaciones/:id/cv", requiereSesion, requiereAdmin, async (req, res) => {
+    const id = idDe(req);
+    if (id === null) return res.status(400).json({ error: "Postulación no válida." });
+    const postulacion = datos().postulaciones.find((item) => item.id === id);
+    if (!postulacion) return res.status(404).json({ error: "La postulación no existe." });
+    if (!/^[\da-f]{8}-(?:[\da-f]{4}-){3}[\da-f]{12}$/i.test(postulacion.cv?.archivoId ?? "")) {
+      return res.status(404).json({ error: "Esta postulación no tiene un CV disponible." });
+    }
+    const ruta = join(directorioCvs, `${postulacion.cv.archivoId}.pdf`);
+    if (!existsSync(ruta)) return res.status(404).json({ error: "No se encontró el CV asociado a esta postulación." });
+    const archivo = await readFile(ruta);
+    const disposicion = req.query.descargar === "1" ? "attachment" : "inline";
+    return res
+      .type("application/pdf")
+      .set("Content-Disposition", `${disposicion}; filename="curriculum.pdf"`)
+      .send(archivo);
+  });
+
+  api.delete("/admin/postulaciones/:id/cv", requiereSesion, requiereAdmin, async (req, res) => {
+    const id = idDe(req);
+    if (id === null) return res.status(400).json({ error: "Postulación no válida." });
+    const postulacion = datos().postulaciones.find((item) => item.id === id);
+    if (!postulacion) return res.status(404).json({ error: "La postulación no existe." });
+    const cv = postulacion.cv;
+    if (!/^[\da-f]{8}-(?:[\da-f]{4}-){3}[\da-f]{12}$/i.test(cv?.archivoId ?? "")) {
+      return res.status(404).json({ error: "Esta postulación no tiene un CV disponible." });
+    }
+
+    delete postulacion.cv;
+    try {
+      almacen.guardar();
+    } catch (error) {
+      postulacion.cv = cv;
+      throw error;
+    }
+
+    try {
+      await unlink(join(directorioCvs, `${cv.archivoId}.pdf`));
+    } catch (error) {
+      postulacion.cv = cv;
+      almacen.guardar();
+      if (error.code === "ENOENT") {
+        return res.status(404).json({ error: "No se encontró el archivo del CV para eliminarlo." });
+      }
+      throw error;
+    }
+    return res.json({ postulacion });
   });
 
   api.patch("/admin/postulaciones/:id/estado", requiereSesion, requiereAdmin, (req, res) => {

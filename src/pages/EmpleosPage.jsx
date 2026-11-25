@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { pedir } from "../api";
 import Icon from "../components/Icon";
@@ -19,6 +19,8 @@ function EmpleosPage() {
   const [estadoCarga, setEstadoCarga] = useState("cargando");
   const [busqueda, setBusqueda] = useState("");
   const [formulario, setFormulario] = useState({ nombre: "", correo: "", telefono: "", mensaje: "" });
+  const [archivoCv, setArchivoCv] = useState(null);
+  const entradaCv = useRef(null);
   const [enviando, setEnviando] = useState(false);
   const [mensaje, setMensaje] = useState("");
   const [error, setError] = useState("");
@@ -69,14 +71,45 @@ function EmpleosPage() {
     setError("");
   }
 
+  function cambiarArchivoCv(evento) {
+    const archivo = evento.target.files?.[0] ?? null;
+    if (archivo && !archivo.name.toLocaleLowerCase("es-CL").endsWith(".pdf")) {
+      setArchivoCv(null);
+      evento.target.value = "";
+      setError("El currículum debe estar en formato PDF.");
+      return;
+    }
+    if (archivo && archivo.type !== "application/pdf") {
+      setArchivoCv(null);
+      evento.target.value = "";
+      setError("El currículum debe estar en formato PDF.");
+      return;
+    }
+    if (archivo && archivo.size > 10 * 1024 * 1024) {
+      setArchivoCv(null);
+      evento.target.value = "";
+      setError("El currículum no puede superar los 10 MB.");
+      return;
+    }
+    setArchivoCv(archivo);
+    setError("");
+  }
+
   async function postular(evento) {
     evento.preventDefault();
     setEnviando(true);
     setError("");
-    const respuesta = await pedir("POST", "/postulaciones", {
+    const datosPostulacion = {
       ofertaId: oferta.id,
       ...formulario,
-    });
+    };
+    let cuerpo = datosPostulacion;
+    if (archivoCv) {
+      cuerpo = new FormData();
+      for (const [nombre, valor] of Object.entries(datosPostulacion)) cuerpo.append(nombre, valor);
+      cuerpo.append("cv", archivoCv);
+    }
+    const respuesta = await pedir("POST", "/postulaciones", cuerpo);
     setEnviando(false);
     if (!respuesta.ok) {
       setError(respuesta.datos?.error ?? "No se pudo enviar tu postulación.");
@@ -84,6 +117,8 @@ function EmpleosPage() {
     }
     setMensaje("¡Listo! Recibimos tu postulación. Gracias por tu interés.");
     setFormulario({ nombre: "", correo: "", telefono: "", mensaje: "" });
+    setArchivoCv(null);
+    if (entradaCv.current) entradaCv.current.value = "";
   }
 
   return (
@@ -219,11 +254,23 @@ function EmpleosPage() {
                       Cuéntanos brevemente sobre ti <span>(opcional)</span>
                       <textarea name="mensaje" rows="4" value={formulario.mensaje} onChange={cambiarCampo} maxLength={1500} />
                     </label>
+                    <label htmlFor="postulacion-cv">Currículum vitae (PDF, máximo 10 MB)</label>
+                    <input
+                      ref={entradaCv}
+                      id="postulacion-cv"
+                      type="file"
+                      accept=".pdf,application/pdf"
+                      onChange={cambiarArchivoCv}
+                      aria-describedby="postulacion-cv-ayuda"
+                    />
+                    <small id="postulacion-cv-ayuda">
+                      {archivoCv ? `Archivo seleccionado: ${archivoCv.name}` : "Adjuntarlo es opcional. El equipo administrador lo usará para revisar tu postulación."}
+                    </small>
                     {error && <p className="empleos__error" role="alert">{error}</p>}
                     <button type="submit" disabled={enviando}>
                       {enviando ? "Enviando..." : "Enviar postulación"}
                     </button>
-                    <small>Al postular, autorizas al equipo de selección a contactarte sobre esta oportunidad.</small>
+                    <small>Al postular, autorizas al equipo de selección a contactarte sobre esta oportunidad. El CV se conservará junto a tu postulación hasta que un administrador lo elimine.</small>
                   </form>
                 </div>
               </>

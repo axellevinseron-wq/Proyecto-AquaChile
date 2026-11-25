@@ -179,6 +179,28 @@ describe("Portal público de empleos", () => {
     expect(await screen.findByText(/Recibimos tu postulación/)).toBeInTheDocument();
   });
 
+  it("permite adjuntar un PDF y lo muestra al administrador", async () => {
+    const usuario = userEvent.setup();
+    mostrarApp("/empleos");
+    expect(await screen.findByText("Operador/a de Centro de Cultivo")).toBeInTheDocument();
+    await usuario.click(screen.getAllByRole("link", { name: /Ver oferta/ })[0]);
+    expect(await screen.findByRole("heading", { name: "Postula a esta oferta" })).toBeInTheDocument();
+    await usuario.type(screen.getByLabelText("Nombre completo"), "Ana CV");
+    await usuario.type(screen.getByLabelText("Correo electrónico"), "ana.cv@example.test");
+    await usuario.type(screen.getByLabelText("Teléfono"), "+56 9 1234 5678");
+    await usuario.upload(
+      screen.getByLabelText("Currículum vitae (PDF, máximo 10 MB)"),
+      new File(["%PDF-1.7\n%%EOF"], "curriculum.pdf", { type: "application/pdf" }),
+    );
+    await usuario.click(screen.getByRole("button", { name: "Enviar postulación" }));
+    expect(await screen.findByText(/Recibimos tu postulación/)).toBeInTheDocument();
+
+    await usuario.click(screen.getByRole("link", { name: "Acceso equipo" }));
+    await iniciarSesion(usuario);
+    await usuario.click(await screen.findByRole("link", { name: "Postulaciones" }));
+    expect(await screen.findByRole("button", { name: "Ver CV de Ana CV" })).toBeInTheDocument();
+  });
+
   it("permite abrir la programación de entrevista desde una postulación en esa etapa", async () => {
     const usuario = userEvent.setup();
     mostrarApp("/empleos");
