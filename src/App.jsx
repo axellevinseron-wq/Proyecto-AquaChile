@@ -12,6 +12,7 @@ import PerfilPanel from "./components/PerfilPanel";
 import DashboardPage from "./pages/DashboardPage";
 import LoginPage from "./pages/LoginPage";
 import SolicitudAccesoPage from "./pages/SolicitudAccesoPage";
+import InvitacionPage from "./pages/InvitacionPage";
 import OportunidadesPage from "./pages/OportunidadesPage";
 import { ToastProvider, useToast } from "./components/Toast";
 
@@ -42,6 +43,10 @@ function AppInterna() {
   // Página pública: no necesita iniciar sesión.
   if (location.pathname === "/solicitud") {
     return <SolicitudAccesoPage />;
+  }
+
+  if (location.pathname.startsWith("/invitacion/")) {
+    return <InvitacionPage />;
   }
 
   if (!usuario) {

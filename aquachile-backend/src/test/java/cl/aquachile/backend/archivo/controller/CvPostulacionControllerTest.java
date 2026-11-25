@@ -12,6 +12,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -221,5 +222,47 @@ class CvPostulacionControllerTest {
   assertEquals(HttpStatus.CONFLICT, error.getStatusCode());
 
   verify(adjuntos, never()).save(any());
+ }
+
+ @Test
+ void devuelveMetadatosSinExponerLaRuta() {
+  var repo = mock(CvAdjuntoRepository.class);
+  var controller = new CvPostulacionController(repo, mock(PostulacionRepository.class), tmp.toString());
+  UUID post = UUID.randomUUID();
+  when(repo.findByPostulacionId(post)).thenReturn(Optional.of(
+          new CvAdjunto(UUID.randomUUID(), post, "curriculum.pdf", "privado/cv.pdf")
+  ));
+
+  assertEquals(Map.of("disponible", true, "nombreArchivo", "curriculum.pdf"), controller.metadata(post));
+  assertEquals(Map.of("disponible", false), controller.metadata(UUID.randomUUID()));
+ }
+
+ @Test
+ void eliminaArchivoYMetadatos() throws Exception {
+  var repo = mock(CvAdjuntoRepository.class);
+  var controller = new CvPostulacionController(repo, mock(PostulacionRepository.class), tmp.toString());
+  UUID post = UUID.randomUUID();
+  CvAdjunto cv = new CvAdjunto(UUID.randomUUID(), post, "curriculum.pdf", "curriculum.pdf");
+  Files.write(tmp.resolve("curriculum.pdf"), new byte[]{1, 2, 3});
+  when(repo.findByPostulacionId(post)).thenReturn(Optional.of(cv));
+
+  assertEquals("CV eliminado correctamente", controller.eliminar(post).get("mensaje"));
+  assertFalse(Files.exists(tmp.resolve("curriculum.pdf")));
+  verify(repo).delete(cv);
+ }
+
+ @Test
+ void noEliminaArchivoFueraDelDirectorioPrivado() {
+  var repo = mock(CvAdjuntoRepository.class);
+  var controller = new CvPostulacionController(repo, mock(PostulacionRepository.class), tmp.toString());
+  UUID post = UUID.randomUUID();
+  CvAdjunto cv = new CvAdjunto(UUID.randomUUID(), post, "curriculum.pdf", "../fuera.pdf");
+  when(repo.findByPostulacionId(post)).thenReturn(Optional.of(cv));
+
+  assertEquals(403, assertThrows(
+          ResponseStatusException.class,
+          () -> controller.eliminar(post)
+  ).getStatusCode().value());
+  verify(repo, never()).delete(any());
  }
 }

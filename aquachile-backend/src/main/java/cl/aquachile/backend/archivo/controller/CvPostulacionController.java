@@ -10,6 +10,7 @@ import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.nio.file.*;
@@ -115,13 +116,21 @@ public class CvPostulacionController {
             );
         }
 
+        if (!Files.isRegularFile(path)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "CV no disponible");
+        }
+        String extension = path.getFileName().toString().toLowerCase().endsWith(".pdf") ? ".pdf" : ".docx";
+        MediaType contentType = extension.equals(".pdf")
+                ? MediaType.APPLICATION_PDF
+                : MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.wordprocessingml.document");
         try {
             return ResponseEntity.ok()
-                    .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                    .contentType(contentType)
                     .header(
                             HttpHeaders.CONTENT_DISPOSITION,
-                            "attachment; filename=\"cv-" + cv.id() + "\""
+                            "attachment; filename=\"cv-" + cv.id() + extension + "\""
                     )
+                    .header(HttpHeaders.CACHE_CONTROL, "no-store")
                     .body(Files.readAllBytes(path));
 
         } catch (IOException ex) {
@@ -130,5 +139,36 @@ public class CvPostulacionController {
                     "CV no disponible"
             );
         }
+    }
+
+    @GetMapping("/{id}/cv/metadata")
+    public Map<String, Object> metadata(@PathVariable UUID id) {
+        return adjuntos.findByPostulacionId(id)
+                .<Map<String, Object>>map(cv -> Map.of(
+                        "disponible", true,
+                        "nombreArchivo", cv.nombreArchivo()
+                ))
+                .orElseGet(() -> Map.of("disponible", false));
+    }
+
+    @DeleteMapping("/{id}/cv")
+    @Transactional
+    public Map<String, String> eliminar(@PathVariable UUID id) {
+        CvAdjunto cv = adjuntos.findByPostulacionId(id)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "CV no encontrado"
+                ));
+        Path path = root.resolve(cv.rutaRelativa()).normalize();
+        if (!path.startsWith(root)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Ruta no permitida");
+        }
+        try {
+            Files.deleteIfExists(path);
+        } catch (IOException ex) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "No se pudo eliminar el archivo CV");
+        }
+        adjuntos.delete(cv);
+        return Map.of("mensaje", "CV eliminado correctamente");
     }
 }

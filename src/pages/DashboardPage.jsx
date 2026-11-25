@@ -12,14 +12,16 @@ import UltimasSolicitudes from "../components/UltimasSolicitudes";
 import AccesoAdminPanel from "../components/AccesoAdminPanel";
 import UsuariosPanel from "../components/UsuariosPanel";
 import EvaluacionCvPage from "./EvaluacionCvPage";
+import InvitacionesPanel from "../components/InvitacionesPanel";
+import PostulacionesPage from "./PostulacionesPage";
 
 import { apiFetch } from "../apiClient";
 import { hoyClave } from "../fechas";
 import { calcularIndicadores } from "../logica";
 
-const VISTAS = ["inicio", "indicadores", "candidatos", "solicitudes","ofertas", "evaluacion-cv"];
+const VISTAS = ["inicio", "indicadores", "candidatos", "solicitudes", "ofertas", "evaluacion-cv", "postulaciones"];
 // Secciones que solo ven los administradores.
-const VISTAS_ADMIN = ["cuentas", "usuarios"];
+const VISTAS_ADMIN = ["cuentas", "usuarios", "invitaciones"];
 
 function DashboardPage({ sesion }) {
   const esAdmin = sesion.rol === "Administrador";
@@ -220,9 +222,13 @@ function DashboardPage({ sesion }) {
 
         {vista === "evaluacion-cv" && <EvaluacionCvPage />}
 
+        {vista === "postulaciones" && <PostulacionesPage sesion={sesion} />}
+
         {vista === "cuentas" && <AccesoAdminPanel autor={sesion.usuario} />}
 
         {vista === "usuarios" && <UsuariosPanel usuarioActual={sesion.usuario} />}
+
+        {vista === "invitaciones" && <InvitacionesPanel />}
 
         <p className="small text-secondary mt-4 mb-0">
           Los postulantes, postulaciones, solicitudes de evaluación y solicitudes de acceso se consultan en PostgreSQL. Algunas preferencias auxiliares pueden permanecer en el navegador.

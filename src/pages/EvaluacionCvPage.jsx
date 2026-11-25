@@ -98,12 +98,14 @@ export default function EvaluacionCvPage() {
   const [ofertas, setOfertas] = useState([]);
   const [postulantes, setPostulantes] = useState([]);
   const [seleccion, setSeleccion] = useState("");
+  const [cvMetadataRespuesta, setCvMetadataRespuesta] = useState(null);
   const [analisis, setAnalisis] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [analizando, setAnalizando] = useState(false);
   const [descargando, setDescargando] = useState(false);
   const [similitud, setSimilitud] = useState(null);
   const [comparando, setComparando] = useState(false);
+  const [eliminandoCv, setEliminandoCv] = useState(false);
   const [error, setError] = useState("");
 
   async function cargarDatos() {
@@ -154,12 +156,32 @@ export default function EvaluacionCvPage() {
     return () => { vigente = false; };
   }, []);
 
+  useEffect(() => {
+    let vigente = true;
+    if (!seleccion) return () => { vigente = false; };
+    apiFetch(`/api/postulaciones/${encodeURIComponent(seleccion)}/cv/metadata`)
+      .then((metadata) => {
+        if (vigente) setCvMetadataRespuesta({ postulacionId: seleccion, ...metadata });
+      })
+      .catch((e) => {
+        if (vigente) setError(e.message || "No se pudo consultar el CV.");
+      });
+    return () => { vigente = false; };
+  }, [seleccion]);
+
+  const cvMetadata = cvMetadataRespuesta?.postulacionId === seleccion
+    ? cvMetadataRespuesta
+    : null;
   const postulacion = postulaciones.find((p) => String(p.id) === seleccion);
   const oferta = ofertas.find((o) => String(o.id) === String(postulacion?.ofertaId));
   const postulante = postulantes.find((p) => String(p.id) === String(postulacion?.postulanteId));
 
   async function descargarCv() {
     if (!seleccion || descargando) return;
+    if (!cvMetadata?.disponible) {
+      setError("Esta postulación no tiene un CV adjunto.");
+      return;
+    }
     setDescargando(true);
     setError("");
     try {
@@ -187,6 +209,23 @@ export default function EvaluacionCvPage() {
       setError(e.message || "No se pudo descargar el CV.");
     } finally {
       setDescargando(false);
+    }
+  }
+
+  async function eliminarCv() {
+    if (!seleccion || eliminandoCv || !cvMetadata?.disponible) return;
+    if (!window.confirm("¿Eliminar el CV adjunto a esta postulación? Esta acción no se puede deshacer.")) return;
+    setEliminandoCv(true);
+    setError("");
+    try {
+      await apiFetch(`/api/postulaciones/${encodeURIComponent(seleccion)}/cv`, { method: "DELETE" });
+      setCvMetadataRespuesta({ postulacionId: seleccion, disponible: false });
+      setAnalisis(null);
+      setSimilitud(null);
+    } catch (e) {
+      setError(e.message || "No se pudo eliminar el CV.");
+    } finally {
+      setEliminandoCv(false);
     }
   }
 
@@ -267,13 +306,25 @@ export default function EvaluacionCvPage() {
                 <p className="small text-secondary mb-0">ID de postulación: {seleccion}</p>
               </div>
             )}
+            {cvMetadata === null ? (
+              <p className="small text-secondary" role="status">Consultando CV adjunto...</p>
+            ) : cvMetadata.disponible ? (
+              <p className="small text-secondary">CV adjunto: {cvMetadata.nombreArchivo}</p>
+            ) : (
+              <p className="small text-secondary">Esta postulación no tiene un CV adjunto.</p>
+            )}
             <div className="d-grid gap-2">
-              <button type="button" className="btn btn-primary" disabled={!seleccion || analizando} onClick={analizarCv}>
+              <button type="button" className="btn btn-primary" disabled={!seleccion || !cvMetadata?.disponible || analizando} onClick={analizarCv}>
                 {analizando ? "Analizando CV..." : "Analizar CV con IA"}
               </button>
-              <button type="button" className="btn btn-outline-primary" disabled={!seleccion || descargando} onClick={descargarCv}>
+              <button type="button" className="btn btn-outline-primary" disabled={!seleccion || !cvMetadata?.disponible || descargando} onClick={descargarCv}>
                 {descargando ? "Descargando CV..." : "Descargar CV original"}
               </button>
+              {leerSesionApi()?.rolApi === "ADMIN" && (
+                <button type="button" className="btn btn-outline-danger" disabled={!cvMetadata?.disponible || eliminandoCv} onClick={eliminarCv}>
+                  {eliminandoCv ? "Eliminando CV..." : "Eliminar CV adjunto"}
+                </button>
+              )}
             </div>
           </>
         )}

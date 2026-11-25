@@ -1,5 +1,7 @@
 # AquaChile – Evaluaciones psicolaborales
 
+> **Backend principal actual:** React + Vite se conecta al backend Java/Spring Boot con PostgreSQL en [`aquachile-backend/README.md`](./aquachile-backend/README.md). Las instrucciones Express de las secciones siguientes describen la arquitectura heredada y no el backend Java usado por las pantallas actuales.
+
 Aplicación web con **React + Vite** (frontend) y **Express** (backend, carpeta `server/`).
 Antes todo se guardaba en `localStorage`; ahora los datos viven en el servidor y el navegador los pide por HTTP.
 

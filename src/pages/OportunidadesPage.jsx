@@ -175,11 +175,16 @@ export default function OportunidadesPage() {
         evento.currentTarget
       );
 
-    if (!formulario.get("cv")?.size) {
-      setMensaje(
-        "Debes adjuntar un CV."
-      );
-      return;
+    const cv = formulario.get("cv");
+    if (cv?.size) {
+      if (!cv.name.toLowerCase().endsWith(".pdf") || (cv.type && cv.type !== "application/pdf")) {
+        setMensaje("El CV debe ser un archivo PDF.");
+        return;
+      }
+      if (cv.size > 10 * 1024 * 1024) {
+        setMensaje("El CV no puede superar los 10 MB.");
+        return;
+      }
     }
 
     try {
@@ -502,16 +507,18 @@ export default function OportunidadesPage() {
                     />
 
                     <label className="form-label">
-                      CV
+                      CV en PDF (opcional, máximo 10 MB)
                     </label>
 
                     <input
                       name="cv"
                       type="file"
-                      accept=".pdf,.docx"
+                      accept=".pdf,application/pdf"
                       className="form-control mb-3"
-                      required
                     />
+                    <p className="small text-secondary">
+                      Puedes adjuntarlo ahora o continuar sin CV.
+                    </p>
 
                     <button
                       type="submit"

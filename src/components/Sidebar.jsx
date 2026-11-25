@@ -9,6 +9,7 @@ const ENLACES = [
   { id: "indicadores", texto: "Indicadores", permisos: ["indicadores"] },
   { id: "candidatos", texto: "Candidatos y solicitudes", permisos: ["candidatos", "solicitudes"], rutas: ["candidatos", "solicitudes"] },
   { id:"ofertas", texto:"Ofertas laborales", roles:["ADMIN","ANALISTA_RECLUTAMIENTO","EVALUADOR"],},
+  { id: "postulaciones", texto: "Postulaciones", roles: ["ADMIN", "ANALISTA_RECLUTAMIENTO", "EVALUADOR"] },
   { id: "evaluacion-cv", texto: "Evaluación de CV con IA", permisos: ["candidatos"] },
 ];
 
@@ -104,6 +105,16 @@ function Sidebar({ sesion, onNavegar, onCerrarSesion, onVerPerfil }) {
         <p className="sidebar-titulo">Navegación Principal</p>
 
         <ul className="sidebar-menu">
+          <li>
+            <NavLink
+                to="/invitaciones"
+                className={({ isActive }) => `sidebar-link ${isActive ? "activo" : ""}`}
+                onClick={onNavegar}
+            >
+              <Icon nombre="mail" size={15} />
+              <span className="flex-grow-1 text-start">Invitaciones</span>
+            </NavLink>
+          </li>
           <li>
             <NavLink
                 to="/inicio"

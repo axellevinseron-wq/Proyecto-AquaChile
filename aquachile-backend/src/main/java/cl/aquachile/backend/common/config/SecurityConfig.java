@@ -110,6 +110,11 @@ public class SecurityConfig {
                                 "/api/auth/login"
                         ).permitAll()
 
+                        // Aceptación de invitaciones
+                        .requestMatchers(
+                                "/api/publico/invitaciones/**"
+                        ).permitAll()
+
                         // Documentación Swagger
                         .requestMatchers(
                                 HttpMethod.GET,
@@ -141,6 +146,11 @@ public class SecurityConfig {
                         // y descarga de CV: solo ADMIN
                         .requestMatchers(
                                 "/api/admin/solicitudes-acceso/**"
+                        ).hasRole("ADMIN")
+
+                        // Administración de invitaciones: solo ADMIN
+                        .requestMatchers(
+                                "/api/admin/invitaciones/**"
                         ).hasRole("ADMIN")
 
                         // Administración de usuarios: solo ADMIN
@@ -178,6 +188,17 @@ public class SecurityConfig {
                                 "ADMIN",
                                 "EVALUADOR"
                         )
+
+                        // Eliminar archivos CV es una operación irreversible: solo ADMIN.
+                        .requestMatchers(
+                                HttpMethod.DELETE,
+                                "/api/postulaciones/*/cv"
+                        ).hasRole("ADMIN")
+
+                        // Crear, actualizar o cancelar entrevistas: solo ADMIN
+                        .requestMatchers(
+                                "/api/admin/postulaciones/**"
+                        ).hasRole("ADMIN")
 
                         // Postulantes, postulaciones, archivos,
                         // IA e indicadores
