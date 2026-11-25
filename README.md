@@ -14,7 +14,7 @@ Proyecto académico de Vinculación con el Medio desarrollado junto a AquaChile 
 
 Repositorio oficial: [Proyecto-AquaChile](https://github.com/axellevinseron-wq/Proyecto-AquaChile).
 
-## Acceso directo para la presentación
+## Acceso directo
 
 La aplicación está publicada en Internet. Para utilizarla desde otro computador o celular, basta con un navegador y conexión a Internet; no es necesario instalar herramientas ni encender el equipo de desarrollo.
 
@@ -29,7 +29,7 @@ La aplicación está publicada en Internet. Para utilizarla desde otro computado
 | Administración de PostgreSQL | [Neon](https://console.neon.tech/) |
 | Código fuente | [GitHub](https://github.com/axellevinseron-wq/Proyecto-AquaChile) |
 
-Abrir Swagger unos minutos antes de la demostración para permitir el arranque automático de Render si está suspendido. Después, ingresar al portal y al panel interno con una cuenta autorizada. Los paneles de administración de infraestructura requieren sus propias credenciales y permisos. No compartir contraseñas en el repositorio. Utilizar únicamente datos ficticios. Los CV laborales en el disco temporal de Render pueden perderse al reiniciar el servicio.
+Puede Demorar en Iniciar La Pagina!
 
 ## Índice
 
