@@ -1,0 +1,8 @@
+target/
+uploads/
+uploads-neon/
+.env
+.env.*
+.git/
+.idea/
+*.log
