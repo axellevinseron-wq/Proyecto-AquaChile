@@ -1,6 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { pedir } from "../api";
+import Icon from "../components/Icon";
+import logoAquachile from "../assets/logo-aquachile.png";
+
+function claseArea(area) {
+  const nombre = area.trim().toLocaleLowerCase("es-CL");
+  if (nombre.includes("oper")) return "empleos__chip--operaciones";
+  if (nombre.includes("mant")) return "empleos__chip--mantencion";
+  if (nombre.includes("person")) return "empleos__chip--personas";
+  return "empleos__chip--default";
+}
 
 function EmpleosPage() {
   const { ofertaId } = useParams();
@@ -80,8 +90,8 @@ function EmpleosPage() {
     <div className="empleos">
       <header className="empleos__barra">
         <Link className="empleos__marca" to="/empleos" aria-label="AquaChile Empleos">
-          <span className="empleos__marca-icono" aria-hidden="true">A</span>
-          <span>AquaChile <strong>Empleos</strong></span>
+          <img className="empleos__logo" src={logoAquachile} alt="" />
+          <span className="empleos__marca-texto">AquaChile <strong>Empleos</strong></span>
         </Link>
         <Link className="empleos__acceso" to="/acceso">Acceso equipo</Link>
       </header>
@@ -95,7 +105,9 @@ function EmpleosPage() {
               <p>Revisa las oportunidades disponibles y postula para ser parte de nuestro equipo.</p>
               <label className="empleos__busqueda">
                 <span className="visually-hidden">Buscar ofertas</span>
-                <span aria-hidden="true">⌕</span>
+                <span className="empleos__busqueda-icono" aria-hidden="true">
+                  <Icon nombre="search" size={21} />
+                </span>
                 <input
                   type="search"
                   placeholder="Cargo, área o ubicación"
@@ -131,18 +143,20 @@ function EmpleosPage() {
                       <div className="empleos__tarjeta-top">
                         <span className="empleos__icono" aria-hidden="true">↗</span>
                         <div className="empleos__etiquetas-superiores">
-                          <span className="empleos__area">{item.area}</span>
-                          {item.esDemo && <span className="empleos__demo">Ejemplo</span>}
+                          <span className={`empleos__chip ${claseArea(item.area)}`}>{item.area}</span>
                         </div>
                       </div>
                       <h3>{item.titulo}</h3>
                       <p className="empleos__ubicacion">{item.ubicacion}</p>
                       <div className="empleos__etiquetas">
-                        <span>{item.modalidad}</span>
-                        <span>{item.jornada}</span>
+                        <span className={`empleos__chip empleos__chip--dato empleos__chip--${item.modalidad.toLocaleLowerCase("es-CL")}`}>
+                          {item.modalidad}
+                        </span>
+                        <span className="empleos__chip empleos__chip--dato">{item.jornada}</span>
                       </div>
                       <Link className="empleos__ver" to={`/empleos/${item.id}`}>
-                        Ver oferta <span aria-hidden="true">→</span>
+                        <span>Ver oferta</span>
+                        <span className="empleos__ver-flecha" aria-hidden="true">→</span>
                       </Link>
                     </article>
                   ))}
@@ -159,11 +173,14 @@ function EmpleosPage() {
               <>
                 <div className="empleos__detalle-cabecera">
                   <div className="empleos__etiquetas-superiores">
-                    <span className="empleos__area">{oferta.area}</span>
-                    {oferta.esDemo && <span className="empleos__demo">Oferta de ejemplo</span>}
+                    <span className={`empleos__chip empleos__chip--detalle ${claseArea(oferta.area)}`}>{oferta.area}</span>
                   </div>
                   <h1>{oferta.titulo}</h1>
-                  <p>{oferta.ubicacion} <span aria-hidden="true">·</span> {oferta.modalidad} <span aria-hidden="true">·</span> {oferta.jornada}</p>
+                  <p>{oferta.ubicacion}</p>
+                  <div className="empleos__detalle-meta" aria-label="Condiciones del cargo">
+                    <span className="empleos__chip empleos__chip--detalle-dato">{oferta.modalidad}</span>
+                    <span className="empleos__chip empleos__chip--detalle-dato">{oferta.jornada}</span>
+                  </div>
                 </div>
                 <div className="empleos__detalle-grid">
                   <article className="empleos__descripcion">
@@ -180,7 +197,12 @@ function EmpleosPage() {
                   <form className="empleos__formulario" onSubmit={postular}>
                     <h2>Postula a esta oferta</h2>
                     <p>Déjanos tus datos y el equipo de selección se pondrá en contacto contigo.</p>
-                    {mensaje && <div className="empleos__exito" role="status">{mensaje}</div>}
+                    {mensaje && (
+                      <div className="empleos__exito" role="status">
+                        <Icon nombre="check" size={18} />
+                        <span>{mensaje}</span>
+                      </div>
+                    )}
                     <label>
                       Nombre completo
                       <input name="nombre" value={formulario.nombre} onChange={cambiarCampo} maxLength={120} required />

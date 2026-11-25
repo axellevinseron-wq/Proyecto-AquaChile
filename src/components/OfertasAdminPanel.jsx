@@ -199,7 +199,7 @@ function OfertasAdminPanel() {
               <tbody>
                 {ofertas.map((oferta) => (
                   <tr key={oferta.id}>
-                    <td><strong>{oferta.titulo}</strong><small className="d-block text-secondary">{oferta.area}{oferta.esDemo ? " · Ejemplo" : ""}</small></td>
+                    <td><strong>{oferta.titulo}</strong><small className="d-block text-secondary">{oferta.area}</small></td>
                     <td>{oferta.ubicacion}</td>
                     <td><span className={`badge ${oferta.estado === "Publicada" ? "text-bg-success" : oferta.estado === "Cerrada" ? "text-bg-secondary" : "text-bg-warning"}`}>{oferta.estado}</span></td>
                     <td>{postulacionesDe(oferta.id)}</td>

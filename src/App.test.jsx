@@ -145,6 +145,25 @@ describe("Portal público de empleos", () => {
     expect(await screen.findByRole("heading", { name: "Iniciar sesión" })).toBeInTheDocument();
   });
 
+  it("filtra las ofertas por cargo, área o ubicación", async () => {
+    const usuario = userEvent.setup();
+    mostrarApp("/empleos");
+    expect(await screen.findByText("Operador/a de Centro de Cultivo")).toBeInTheDocument();
+
+    await usuario.type(screen.getByRole("searchbox", { name: "Buscar ofertas" }), "Mantención");
+    expect(screen.queryByText("Operador/a de Centro de Cultivo")).not.toBeInTheDocument();
+    expect(screen.getByText("Técnico/a de Mantención")).toBeInTheDocument();
+  });
+
+  it("muestra áreas y modalidad como chips visuales", async () => {
+    mostrarApp("/empleos");
+
+    expect(await screen.findByText("Operaciones")).toHaveClass("empleos__chip");
+    expect(screen.getByText("Mantención")).toHaveClass("empleos__chip");
+    expect(screen.getByText("Personas")).toHaveClass("empleos__chip");
+    expect(screen.getAllByText("Presencial").length).toBeGreaterThan(0);
+  });
+
   it("muestra ofertas y permite enviar una postulación sin iniciar sesión", async () => {
     const usuario = userEvent.setup();
     mostrarApp("/empleos");
