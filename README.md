@@ -14,6 +14,23 @@ Proyecto académico de Vinculación con el Medio desarrollado junto a AquaChile 
 
 Repositorio oficial: [Proyecto-AquaChile](https://github.com/axellevinseron-wq/Proyecto-AquaChile).
 
+## Acceso directo para la presentación
+
+La aplicación está publicada en Internet. Para utilizarla desde otro computador o celular, basta con un navegador y conexión a Internet; no es necesario instalar herramientas ni encender el equipo de desarrollo.
+
+| Recurso | Enlace |
+|---|---|
+| Aplicación web | [Abrir AquaChile](https://aquachile-frontend.vercel.app/) |
+| Portal de empleos | [Ofertas laborales](https://aquachile-frontend.vercel.app/empleos) |
+| Panel interno | [Iniciar sesión](https://aquachile-frontend.vercel.app/acceso) |
+| API REST | [Swagger](https://aquachile-backend-1784.onrender.com/swagger-ui/index.html) |
+| Administración del backend | [Render](https://dashboard.render.com/) |
+| Administración del frontend | [Vercel](https://vercel.com/dashboard) |
+| Administración de PostgreSQL | [Neon](https://console.neon.tech/) |
+| Código fuente | [GitHub](https://github.com/axellevinseron-wq/Proyecto-AquaChile) |
+
+Abrir Swagger unos minutos antes de la demostración para permitir el arranque automático de Render si está suspendido. Después, ingresar al portal y al panel interno con una cuenta autorizada. Los paneles de administración de infraestructura requieren sus propias credenciales y permisos. No compartir contraseñas en el repositorio. Utilizar únicamente datos ficticios. Los CV laborales en el disco temporal de Render pueden perderse al reiniciar el servicio.
+
 ## Índice
 
 - [Problemática y objetivo](#problemática-y-objetivo)
@@ -21,6 +38,7 @@ Repositorio oficial: [Proyecto-AquaChile](https://github.com/axellevinseron-wq/P
 - [Tecnologías y contenidos del curso](#tecnologías-y-contenidos-del-curso)
 - [Arquitectura y modelo de datos](#arquitectura-y-modelo-de-datos)
 - [Instalación y ejecución](#instalación-y-ejecución)
+- [Despliegue en Internet](#despliegue-en-internet)
 - [Rutas y API REST](#rutas-y-api-rest)
 - [Seguridad e inteligencia artificial](#seguridad-e-inteligencia-artificial)
 - [Pruebas](#pruebas)
@@ -64,7 +82,8 @@ El objetivo del MVP es ofrecer un portal público de empleos y un panel interno 
 |---|---|
 | Frontend | React 19, Vite 8, Bootstrap 5, React Router |
 | Backend | Java 21, Spring Boot, Spring MVC, Spring Security, Spring Data JPA |
-| Persistencia | PostgreSQL, Hibernate/JPA |
+| Persistencia | PostgreSQL, Hibernate/JPA, Neon |
+| Despliegue | Vercel, Render, Docker |
 | Seguridad | JWT, autorización por roles, BCrypt |
 | Documentación API | Swagger UI / OpenAPI |
 | IA | API Groq, modelo configurable |
@@ -191,6 +210,49 @@ Si Vite utiliza otro puerto, actualizar CORS. Si el puerto 8080 está ocupado, i
 
 Los roles internos contemplados son Administrador (`ADMIN`), Analista de reclutamiento (`ANALISTA_RECLUTAMIENTO`) y Evaluador (`EVALUADOR`). El acceso se realiza con cuentas configuradas en el backend. Crear o verificar cuentas ficticias antes de la demostración; las credenciales del prototipo EA2 no se consideran vigentes. No publicar contraseñas activas ni tokens.
 
+## Despliegue en Internet
+
+La versión de demostración está publicada en tres plataformas independientes. No requiere mantener encendido el computador de desarrollo.
+
+| Servicio | Dirección |
+|---|---|
+| Aplicación web (Vercel) | [AquaChile](https://aquachile-frontend.vercel.app) |
+| Portal público | [Ofertas laborales](https://aquachile-frontend.vercel.app/empleos) |
+| Acceso interno | [Iniciar sesión](https://aquachile-frontend.vercel.app/acceso) |
+| Backend (Render) | https://aquachile-backend-1784.onrender.com |
+| Swagger | [API REST](https://aquachile-backend-1784.onrender.com/swagger-ui/index.html) |
+| Base de datos | Neon PostgreSQL, base `aquachile_prod` |
+
+### Backend: Render
+
+El servicio utiliza Docker, la rama `main` del repositorio oficial y el directorio `aquachile-backend`. El `Dockerfile` compila el proyecto con Maven y ejecuta el JAR con Java 21 en el puerto 10000. Las variables privadas se configuran en Environment del servicio, nunca en GitHub.
+
+- `DB_URL`: URL JDBC de Neon con TLS (`sslmode=require&channelBinding=require`).
+- `DB_USER`, `DB_PASSWORD`, `JWT_SECRET`, `ADMIN_INITIAL_PASSWORD`, `GROQ_API_KEY`: valores privados del entorno.
+- `SERVER_PORT`: `10000`.
+- `CORS_ORIGINS`: `http://localhost:5175,https://aquachile-frontend.vercel.app`.
+- `UPLOAD_DIR`: `/app/uploads`.
+
+### Frontend: Vercel
+
+El frontend utiliza Vite, el comando de compilación `vite build` y el directorio de salida `dist`. La variable de producción `VITE_API_URL` apunta a `https://aquachile-backend-1784.onrender.com`. El archivo `vercel.json` configura la navegación SPA y `.vercelignore` excluye el backend y archivos locales del despliegue.
+
+El proyecto Vercel está vinculado mediante CLI, sin conexión automática al repositorio Git. Para actualizarlo desde la raíz del proyecto, con una cuenta autorizada:
+
+```powershell
+vercel login
+vercel link
+vercel --prod
+```
+
+Seleccionar el proyecto existente `aquachile-frontend` al vincular. No crear otro repositorio. Los archivos `.env.local` y `.vercel/` no deben publicarse.
+
+### Operación y almacenamiento
+
+Neon conserva los registros de la base de datos independientemente del ciclo de vida del backend. La base de demostración es independiente de la base local. Render gratuito puede suspender el servicio por inactividad; una nueva petición puede despertarlo y tardar en responder. Vercel mantiene publicado el frontend.
+
+Los CV laborales guardados en `/app/uploads` utilizan el sistema de archivos temporal de Render: pueden perderse al reiniciar, suspender o redesplegar el servicio, aunque sus referencias permanezcan en PostgreSQL. Para garantizar su conservación se requiere almacenamiento privado persistente. Esta limitación no afecta la ejecución local con un directorio de archivos conservado. Utilizar exclusivamente datos y CV ficticios.
+
 ## Rutas y API REST
 
 ### Rutas del frontend
@@ -292,10 +354,14 @@ Proyecto-AquaChile/
 │   │   └── common/          Configuración y utilidades
 │   ├── src/main/resources/  Configuración
 │   ├── src/test/            Pruebas backend
+│   ├── Dockerfile           Construcción del backend para Render
+│   ├── .dockerignore        Exclusiones del contenedor
 │   └── pom.xml
 ├── docs/                    Entregables académicos
 ├── package.json
 ├── vite.config.js
+├── vercel.json              Rutas SPA para Vercel
+├── .vercelignore            Exclusiones del despliegue frontend
 └── README.md
 ```
 
