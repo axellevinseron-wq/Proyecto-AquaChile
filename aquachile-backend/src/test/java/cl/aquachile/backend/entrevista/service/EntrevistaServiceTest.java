@@ -1,6 +1,8 @@
 package cl.aquachile.backend.entrevista.service;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 import cl.aquachile.backend.archivo.repository.CvAdjuntoRepository;
@@ -20,11 +22,47 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.server.ResponseStatusException;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
 
 class EntrevistaServiceTest {
+    @Test
+    void conservaFechaYMensajeAlActualizarEstado() {
+        PostulacionRepository postulaciones = mock(PostulacionRepository.class);
+        PostulanteRepository postulantes = mock(PostulanteRepository.class);
+        OfertaRepository ofertas = mock(OfertaRepository.class);
+        CvAdjuntoRepository adjuntos = mock(CvAdjuntoRepository.class);
+        EntrevistaRepository entrevistas = mock(EntrevistaRepository.class);
+        Instant fecha = Instant.parse("2030-04-02T18:00:00Z");
+        UUID postulacionId = UUID.randomUUID();
+        UUID postulanteId = UUID.randomUUID();
+        UUID ofertaId = UUID.randomUUID();
+        Postulacion existente = new Postulacion(
+                postulacionId, ofertaId, postulanteId, "PENDIENTE", fecha, "Mensaje de prueba");
+        AtomicReference<Postulacion> guardada = new AtomicReference<>();
+        when(postulaciones.findById(postulacionId)).thenReturn(Optional.of(existente));
+        when(postulaciones.save(any())).thenAnswer(invocation -> {
+            guardada.set(invocation.getArgument(0));
+            return guardada.get();
+        });
+        when(postulaciones.findAll()).thenAnswer(invocation ->
+                List.of(guardada.get() == null ? existente : guardada.get()));
+        when(postulantes.findAll()).thenReturn(List.of(
+                new Postulante(postulanteId, "Candidata", "candidata@example.com", "", "")));
+        when(ofertas.findAll()).thenReturn(List.of(
+                new Oferta(ofertaId, "Analista", "Descripción", "Santiago", true)));
+        when(adjuntos.findAll()).thenReturn(List.of());
+        when(entrevistas.findAll()).thenReturn(List.of());
+        EntrevistaService service = new EntrevistaService(
+                postulaciones, postulantes, ofertas, adjuntos, entrevistas,
+                mock(GoogleCalendarClient.class), new ObjectMapper());
+
+        var resultado = service.actualizarEstado(postulacionId, "En revisión");
+
+        assertEquals(fecha, guardada.get().fechaCreacion());
+        assertEquals("Mensaje de prueba", guardada.get().mensaje());
+        assertEquals(fecha, resultado.fecha());
+        assertEquals("Mensaje de prueba", resultado.mensaje());
+    }
+
     @Test
     void rechazaFechaInvalidaAntesDeConsultarGoogle() {
         GoogleCalendarClient google = mock(GoogleCalendarClient.class);

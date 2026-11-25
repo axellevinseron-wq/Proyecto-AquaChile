@@ -36,8 +36,14 @@ function AppInterna() {
     }
   }
 
-  if (location.pathname === "/oportunidades") {
-    return <OportunidadesPage />;
+  const detalleEmpleo = location.pathname.match(/^\/empleos\/([^/]+)\/?$/);
+  if (
+    location.pathname === "/" ||
+    location.pathname === "/oportunidades" ||
+    location.pathname === "/empleos" ||
+    detalleEmpleo
+  ) {
+    return <OportunidadesPage ofertaId={detalleEmpleo?.[1]} />;
   }
 
   // Página pública: no necesita iniciar sesión.
@@ -47,6 +53,10 @@ function AppInterna() {
 
   if (location.pathname.startsWith("/invitacion/")) {
     return <InvitacionPage />;
+  }
+
+  if (location.pathname === "/acceso" && usuario) {
+    return <Navigate to="/inicio" replace />;
   }
 
   if (!usuario) {

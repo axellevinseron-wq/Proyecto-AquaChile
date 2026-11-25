@@ -17,6 +17,8 @@ describe("PostulacionesPage", () => {
       telefono: "+56912345678",
       ofertaTitulo: "Analista",
       estado: "Entrevista",
+      fecha: "2030-04-02T18:00:00Z",
+      mensaje: "Me interesa aportar al equipo de AquaChile.",
       entrevista: {
         estado: "Agendada",
         inicio: "2030-04-02T18:00:00Z",
@@ -34,6 +36,8 @@ describe("PostulacionesPage", () => {
     );
 
     expect(await screen.findByText("Candidata")).toBeTruthy();
+    expect(screen.getByText("Me interesa aportar al equipo de AquaChile.")).toBeTruthy();
+    expect(screen.getAllByText(/02-04-2030/)).toHaveLength(2);
     expect(screen.getByRole("link", { name: "Ver evento" }).getAttribute("href"))
       .toBe("https://calendar.google.com/event");
     expect(screen.getByRole("link", { name: "Entrar a Meet" }).getAttribute("href"))

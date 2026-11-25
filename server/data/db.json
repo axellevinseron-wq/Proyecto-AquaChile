@@ -1,0 +1,524 @@
+{
+  "usuarios": [
+    {
+      "usuario": "admin",
+      "rol": "Administrador",
+      "claveHash": "scrypt$786a1c4ae889b16708cae34e22f44914$709568b7daabecd10a8cc5b5209ed3ed81fe34475ea1efe0f91c6734496bca18ea6a5f539cd30e0aae7801a9484c94bd5a5625ae60215bfa7917847a6520b56a"
+    },
+    {
+      "usuario": "jefe.rrhh",
+      "rol": "Administrador",
+      "claveHash": "scrypt$a93489663e852ecf462cb71635f0bc70$346624f4a6e3b3e438e7513a12557dfa1b8eecf498cd0591d42792f5d088bb22c98e34e9647583f0975d65e4b7c8469ab62fc7f96acb440f34b5880e343aa3a1"
+    },
+    {
+      "usuario": "psicologo",
+      "rol": "Usuario",
+      "claveHash": "scrypt$bbc594cc013a27fa41b61f1b1c7c242a$6381cd75d45767a22ccad9c13cbba0c34ff623b2acbf40e8d5273db53cbda8fa30af0c832c55e0c0982edb9e349fa182f3b58c2c03975cf0fbaa865146ca2f4f"
+    },
+    {
+      "usuario": "cfuentes",
+      "rol": "Usuario",
+      "permisos": {
+        "indicadores": true,
+        "candidatos": true,
+        "solicitudes": true
+      },
+      "nombre": "Camila Fuentes",
+      "correo": "camila.fuentes@example.test",
+      "telefono": "+56 9 6123 4501",
+      "rut": "17.234.561-1",
+      "solicitudId": 1,
+      "creado": "2026-10-27T14:20:00.000Z",
+      "claveHash": "scrypt$787ab0ca300a8e7f5f7cb2f5b8e00801$95881abc47c5b8ad2ce346a45b15db498af69eb86315291bc33b67d37ebb9154240cb25ea324a8e71cc0c8b3cd07c0bef3ee509d40c2c8d44ead4df4fe865d25"
+    },
+    {
+      "usuario": "maraya",
+      "rol": "Usuario",
+      "permisos": {
+        "indicadores": true,
+        "candidatos": true,
+        "solicitudes": true
+      },
+      "nombre": "Matías Araya",
+      "correo": "matias.araya@example.test",
+      "telefono": "+56 9 7345 8812",
+      "rut": "18.765.432-7",
+      "solicitudId": 2,
+      "creado": "2026-10-29T16:05:00.000Z",
+      "claveHash": "scrypt$01ed2cc4a67022a0e72397822aa13f20$f99f884dadc67d2bbc89baf5d5dbe7672a2f5a14bc761699fcddb479e281e204219ec21300aac98e73acadbf443b96b58963cf60bcd86c025e3b3a13740c2af6"
+    }
+  ],
+  "presencia": {
+    "admin": {
+      "conectado": true,
+      "latido": "2026-11-25T03:05:38.813Z",
+      "actividad": "2026-11-25T03:05:38.813Z"
+    }
+  },
+  "notificaciones": [
+    {
+      "id": "1795575891759-EC5G",
+      "tipo": "sesion",
+      "usuario": "admin",
+      "texto": "admin inició sesión.",
+      "fecha": "2026-11-25T03:04:51.759Z"
+    },
+    {
+      "id": "1795575853280-QCBJ",
+      "tipo": "sesion",
+      "usuario": "admin",
+      "texto": "admin cerró sesión.",
+      "fecha": "2026-11-25T03:04:13.280Z"
+    },
+    {
+      "id": "1795575506846-P476",
+      "tipo": "sesion",
+      "usuario": "admin",
+      "texto": "admin inició sesión.",
+      "fecha": "2026-11-25T02:58:26.847Z"
+    },
+    {
+      "id": "1795575337376-42CC",
+      "tipo": "sesion",
+      "usuario": "admin",
+      "texto": "admin inició sesión.",
+      "fecha": "2026-11-25T02:55:37.376Z"
+    },
+    {
+      "id": "1795575110239-Y9ES",
+      "tipo": "sesion",
+      "usuario": "admin",
+      "texto": "admin inició sesión.",
+      "fecha": "2026-11-25T02:51:50.239Z"
+    },
+    {
+      "id": "1795575095425-WYFM",
+      "tipo": "sesion",
+      "usuario": "admin",
+      "texto": "admin inició sesión.",
+      "fecha": "2026-11-25T02:51:35.426Z"
+    },
+    {
+      "id": "1795575076674-CN49",
+      "tipo": "sesion",
+      "usuario": "admin",
+      "texto": "admin inició sesión.",
+      "fecha": "2026-11-25T02:51:16.676Z"
+    },
+    {
+      "id": "1795570046905-5XXJ",
+      "tipo": "sesion",
+      "usuario": "admin",
+      "texto": "admin inició sesión.",
+      "fecha": "2026-11-25T01:27:26.905Z"
+    },
+    {
+      "id": "1795570013836-E4CC",
+      "tipo": "sesion",
+      "usuario": "admin",
+      "texto": "admin cerró sesión.",
+      "fecha": "2026-11-25T01:26:53.837Z"
+    },
+    {
+      "id": "1795569878498-SZRC",
+      "tipo": "sesion",
+      "usuario": "admin",
+      "texto": "admin inició sesión.",
+      "fecha": "2026-11-25T01:24:38.498Z"
+    },
+    {
+      "id": "1795569849301-FA6C",
+      "tipo": "sesion",
+      "usuario": "admin",
+      "texto": "admin inició sesión.",
+      "fecha": "2026-11-25T01:24:09.301Z"
+    },
+    {
+      "id": "1795020559064-WFAV",
+      "tipo": "sesion",
+      "usuario": "admin",
+      "texto": "admin inició sesión.",
+      "fecha": "2026-11-18T16:49:19.065Z"
+    },
+    {
+      "id": "1795016675242-QQPY",
+      "tipo": "sesion",
+      "usuario": "admin",
+      "texto": "admin inició sesión.",
+      "fecha": "2026-11-18T15:44:35.242Z"
+    },
+    {
+      "id": "1795014732821-TAXH",
+      "tipo": "sesion",
+      "usuario": "psicologo",
+      "texto": "psicologo inició sesión.",
+      "fecha": "2026-11-18T15:12:12.821Z"
+    },
+    {
+      "id": "1795014519527-7T5F",
+      "tipo": "sesion",
+      "usuario": "admin",
+      "texto": "admin inició sesión.",
+      "fecha": "2026-11-18T15:08:39.528Z"
+    },
+    {
+      "id": "1794588441678-JZAG",
+      "tipo": "sesion",
+      "usuario": "admin",
+      "texto": "admin inició sesión.",
+      "fecha": "2026-11-13T16:47:21.678Z"
+    },
+    {
+      "id": "1794586338965-H7RT",
+      "tipo": "sesion",
+      "usuario": "admin",
+      "texto": "admin inició sesión.",
+      "fecha": "2026-11-13T16:12:18.966Z"
+    },
+    {
+      "id": "demo-5",
+      "tipo": "solicitud",
+      "usuario": "fnunez",
+      "texto": "Felipe Núñez envió una solicitud de acceso.",
+      "fecha": "2026-11-02T14:00:00.000Z"
+    },
+    {
+      "id": "demo-6",
+      "tipo": "solicitud",
+      "usuario": "cvera",
+      "texto": "Constanza Vera envió una solicitud de acceso.",
+      "fecha": "2026-11-03T12:30:00.000Z"
+    },
+    {
+      "id": "demo-7",
+      "tipo": "solicitud",
+      "usuario": "amunoz",
+      "texto": "Andrea Muñoz envió una solicitud de acceso.",
+      "fecha": "2026-11-03T20:10:00.000Z"
+    }
+  ],
+  "invitaciones": [],
+  "candidatos": [
+    {
+      "id": 1,
+      "nombre": "Daniela Ríos",
+      "correo": "daniela.rios@example.test",
+      "cargo": "Analista de Datos",
+      "familiaCargo": "Datos y Tecnología"
+    },
+    {
+      "id": 2,
+      "nombre": "Matías Fuentes",
+      "correo": "matias.fuentes@example.test",
+      "cargo": "Supervisor de Operaciones",
+      "familiaCargo": "Operaciones"
+    },
+    {
+      "id": 3,
+      "nombre": "Camila Soto",
+      "correo": "camila.soto@example.test",
+      "cargo": "Psicóloga Organizacional",
+      "familiaCargo": "Personas"
+    },
+    {
+      "id": 4,
+      "nombre": "Nicolás Pérez",
+      "correo": "nicolas.perez@example.test",
+      "cargo": "Técnico de Mantención",
+      "familiaCargo": "Mantención"
+    }
+  ],
+  "solicitudes": [
+    {
+      "id": 1,
+      "candidatoId": 1,
+      "candidato": "Daniela Ríos",
+      "cargo": "Analista de Datos",
+      "familiaCargo": "Datos y Tecnología",
+      "estado": "Pendiente",
+      "responsable": "Laura Pérez",
+      "fechaSolicitud": "2026-10-12"
+    },
+    {
+      "id": 2,
+      "candidatoId": 2,
+      "candidato": "Matías Fuentes",
+      "cargo": "Supervisor de Operaciones",
+      "familiaCargo": "Operaciones",
+      "estado": "En proceso",
+      "responsable": "Carlos Díaz",
+      "fechaSolicitud": "2026-10-10"
+    },
+    {
+      "id": 3,
+      "candidatoId": 3,
+      "candidato": "Camila Soto",
+      "cargo": "Psicóloga Organizacional",
+      "familiaCargo": "Personas",
+      "estado": "Finalizada",
+      "responsable": "Laura Pérez",
+      "fechaSolicitud": "2026-10-08"
+    }
+  ],
+  "ofertas": [
+    {
+      "id": 1,
+      "titulo": "Operador/a de Centro de Cultivo",
+      "area": "Operaciones",
+      "ubicacion": "Región de Los Lagos",
+      "modalidad": "Presencial",
+      "jornada": "Turnos rotativos",
+      "descripcion": "Apoya las labores diarias del centro de cultivo, velando por el cumplimiento de los procedimientos operacionales y de seguridad.",
+      "requisitos": "Enseñanza media completa. Se valorará experiencia en centros de cultivo o labores productivas.",
+      "fechaCierre": "",
+      "estado": "Publicada",
+      "esDemo": true,
+      "creada": "2026-11-01T12:00:00.000Z"
+    },
+    {
+      "id": 2,
+      "titulo": "Técnico/a de Mantención",
+      "area": "Mantención",
+      "ubicacion": "Puerto Montt, Los Lagos",
+      "modalidad": "Presencial",
+      "jornada": "Jornada completa",
+      "descripcion": "Realiza mantenimiento preventivo y correctivo de equipos, registra intervenciones y coordina prioridades con el equipo de operaciones.",
+      "requisitos": "Formación técnica en electricidad, mecánica o área afín. Experiencia en mantenimiento industrial deseable.",
+      "fechaCierre": "",
+      "estado": "Publicada",
+      "esDemo": true,
+      "creada": "2026-11-01T12:00:00.000Z"
+    },
+    {
+      "id": 3,
+      "titulo": "Analista de Personas",
+      "area": "Personas",
+      "ubicacion": "Puerto Montt, Los Lagos",
+      "modalidad": "Híbrida",
+      "jornada": "Jornada completa",
+      "descripcion": "Colabora en procesos de selección, análisis de información y coordinación de iniciativas para los equipos de la compañía.",
+      "requisitos": "Título profesional afín a Recursos Humanos, Psicología o Administración. Manejo de herramientas de oficina.",
+      "fechaCierre": "",
+      "estado": "Publicada",
+      "esDemo": true,
+      "creada": "2026-11-01T12:00:00.000Z"
+    }
+  ],
+  "postulaciones": [
+    {
+      "id": 2,
+      "ofertaId": 1,
+      "ofertaTitulo": "Operador/a de Centro de Cultivo",
+      "nombre": "asda",
+      "correo": "natandreik11@gmail.com",
+      "telefono": "sdsfsf",
+      "mensaje": "dsds",
+      "estado": "Entrevista",
+      "fecha": "2026-11-25T03:04:41.254Z",
+      "entrevista": {
+        "inicio": "2026-11-25T15:07:00.000Z",
+        "fin": "2026-11-25T15:37:00.000Z",
+        "duracionMinutos": 30,
+        "zonaHoraria": "America/Santiago",
+        "estado": "Agendada",
+        "organizador": "axel.levin.seron@gmail.com",
+        "eventoId": "c42ddb928931477cabbbd8864fe5e448",
+        "solicitudMeetId": "2f45ea21-020d-4120-8833-68284fc2313c",
+        "enlaceCalendar": "https://www.google.com/calendar/event?eid=YzQyZGRiOTI4OTMxNDc3Y2FiYmJkODg2NGZlNWU0NDggYXhlbC5sZXZpbi5zZXJvbkBt",
+        "enlaceMeet": "https://meet.google.com/dop-gzae-rxb"
+      }
+    },
+    {
+      "id": 1,
+      "ofertaId": 1,
+      "ofertaTitulo": "Operador/a de Centro de Cultivo",
+      "nombre": "asas",
+      "correo": "axel.levin.seron@gmail.com",
+      "telefono": "asas",
+      "mensaje": "asa",
+      "estado": "Entrevista",
+      "fecha": "2026-11-25T01:27:15.621Z",
+      "entrevista": {
+        "inicio": "2026-11-25T15:02:00.000Z",
+        "fin": "2026-11-25T15:32:00.000Z",
+        "duracionMinutos": 30,
+        "zonaHoraria": "America/Santiago",
+        "estado": "Agendada",
+        "organizador": "axel.levin.seron@gmail.com",
+        "eventoId": "9d8ef3609fe648a28a792a688b0a2d7f",
+        "solicitudMeetId": "5601b18f-98fd-48c8-8c7d-849ac3c881b3",
+        "enlaceCalendar": "https://www.google.com/calendar/event?eid=OWQ4ZWYzNjA5ZmU2NDhhMjhhNzkyYTY4OGIwYTJkN2YgYXhlbC5sZXZpbi5zZXJvbkBt",
+        "enlaceMeet": "https://meet.google.com/srr-wuyd-ayv"
+      }
+    }
+  ],
+  "solicitudesAcceso": [
+    {
+      "id": 1,
+      "nombre": "Camila",
+      "apellido": "Fuentes",
+      "rut": "17.234.561-1",
+      "telefono": "+56 9 6123 4501",
+      "correo": "camila.fuentes@example.test",
+      "usuario": "cfuentes",
+      "motivo": "Soy jefa de turno en la planta y necesito revisar los indicadores.",
+      "codigo": "CAM482",
+      "fecha": "2026-10-26T13:40:00.000Z",
+      "estado": "Aceptada",
+      "comentarios": [
+        {
+          "autor": "admin",
+          "texto": "Cuenta aprobada. Cambia tu contraseña al ingresar por primera vez.",
+          "fecha": "2026-10-27T14:20:00.000Z"
+        },
+        {
+          "autor": "admin",
+          "texto": "Estado cambiado a Aceptada.",
+          "fecha": "2026-10-27T14:20:00.000Z",
+          "sistema": true
+        }
+      ],
+      "credenciales": {
+        "usuario": "cfuentes",
+        "clave": "K7M3QX9P"
+      },
+      "demo": true
+    },
+    {
+      "id": 2,
+      "nombre": "Matías",
+      "apellido": "Araya",
+      "rut": "18.765.432-7",
+      "telefono": "+56 9 7345 8812",
+      "correo": "matias.araya@example.test",
+      "usuario": "maraya",
+      "motivo": "Soy técnico de mantención y necesito consultar candidatos del área.",
+      "codigo": "MAT735",
+      "fecha": "2026-10-28T12:15:00.000Z",
+      "estado": "Aceptada",
+      "comentarios": [
+        {
+          "autor": "admin",
+          "texto": "Estado cambiado a Aceptada.",
+          "fecha": "2026-10-29T16:05:00.000Z",
+          "sistema": true
+        }
+      ],
+      "credenciales": {
+        "usuario": "maraya",
+        "clave": "T4HW8N2R"
+      },
+      "demo": true
+    },
+    {
+      "id": 3,
+      "nombre": "Javiera",
+      "apellido": "Torres",
+      "rut": "19.345.678-2",
+      "telefono": "+56 9 5432 1098",
+      "correo": "javiera.torres@example.test",
+      "usuario": "jtorres",
+      "motivo": "Quiero acceso para consultar datos de otra área.",
+      "codigo": "JAV296",
+      "fecha": "2026-10-29T15:50:00.000Z",
+      "estado": "Rechazada",
+      "comentarios": [
+        {
+          "autor": "admin",
+          "texto": "Tu cargo no requiere acceso al sistema. Si cambia tu función, envía una nueva solicitud.",
+          "fecha": "2026-10-30T10:30:00.000Z"
+        },
+        {
+          "autor": "admin",
+          "texto": "Estado cambiado a Rechazada.",
+          "fecha": "2026-10-30T10:31:00.000Z",
+          "sistema": true
+        }
+      ],
+      "credenciales": null,
+      "demo": true
+    },
+    {
+      "id": 4,
+      "nombre": "Ignacio",
+      "apellido": "Paredes",
+      "rut": "16.987.654-1",
+      "telefono": "+56 9 8890 3345",
+      "correo": "ignacio.paredes@example.test",
+      "usuario": "iparedes",
+      "motivo": "Necesito acceso temporal para una auditoría interna.",
+      "codigo": "IGN914",
+      "fecha": "2026-10-30T18:25:00.000Z",
+      "estado": "Rechazada",
+      "comentarios": [
+        {
+          "autor": "admin",
+          "texto": "No recibimos el respaldo de tu jefatura. Vuelve a solicitarlo adjuntando su autorización.",
+          "fecha": "2026-10-31T09:10:00.000Z"
+        },
+        {
+          "autor": "admin",
+          "texto": "Estado cambiado a Rechazada.",
+          "fecha": "2026-10-31T09:11:00.000Z",
+          "sistema": true
+        }
+      ],
+      "credenciales": null,
+      "demo": true
+    },
+    {
+      "id": 5,
+      "nombre": "Felipe",
+      "apellido": "Núñez",
+      "rut": "20.123.456-5",
+      "telefono": "+56 9 4410 7723",
+      "correo": "felipe.nunez@example.test",
+      "usuario": "fnunez",
+      "motivo": "Apoyo al equipo de selección y necesito registrar evaluaciones.",
+      "codigo": "FEL358",
+      "fecha": "2026-11-02T14:00:00.000Z",
+      "estado": "Pendiente",
+      "comentarios": [
+        {
+          "autor": "admin",
+          "texto": "Indícanos tu cargo y el nombre de tu jefatura directa para continuar con la revisión.",
+          "fecha": "2026-11-03T11:45:00.000Z"
+        }
+      ],
+      "credenciales": null,
+      "demo": true
+    },
+    {
+      "id": 6,
+      "nombre": "Constanza",
+      "apellido": "Vera",
+      "rut": "15.678.901-1",
+      "telefono": "+56 9 9021 6654",
+      "correo": "constanza.vera@example.test",
+      "usuario": "cvera",
+      "motivo": "Soy psicóloga laboral y necesito registrar evaluaciones de candidatos.",
+      "codigo": "CON672",
+      "fecha": "2026-11-03T12:30:00.000Z",
+      "estado": "Pendiente",
+      "comentarios": [],
+      "credenciales": null,
+      "demo": true
+    },
+    {
+      "id": 7,
+      "nombre": "Andrea",
+      "apellido": "Muñoz",
+      "rut": "18.234.509-1",
+      "telefono": "+56 9 3278 4419",
+      "correo": "andrea.munoz@example.test",
+      "usuario": "amunoz",
+      "motivo": "Soy coordinadora de RR.HH. y necesito gestionar las solicitudes de evaluación.",
+      "codigo": "AND847",
+      "fecha": "2026-11-03T20:10:00.000Z",
+      "estado": "Pendiente",
+      "comentarios": [],
+      "credenciales": null,
+      "demo": true
+    }
+  ]
+}

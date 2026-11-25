@@ -20,6 +20,17 @@ function fechaVisible(entrevista) {
   }).format(new Date(entrevista.inicio));
 }
 
+function fechaPostulacion(fecha) {
+  if (!fecha) return "";
+  const instante = new Date(fecha);
+  if (!Number.isFinite(instante.getTime())) return "";
+  return new Intl.DateTimeFormat("es-CL", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "America/Santiago",
+  }).format(instante);
+}
+
 export default function PostulacionesPage({ sesion }) {
   const esAdmin = sesion.rolApi === "ADMIN";
   const [postulaciones, setPostulaciones] = useState([]);
@@ -195,13 +206,15 @@ export default function PostulacionesPage({ sesion }) {
         <div className="card card-body caja caja--azul">
           <div className="table-responsive">
             <table className="table table-hover align-middle mb-0">
-              <thead><tr><th>Postulante</th><th>Oferta</th><th>Estado</th><th>Entrevista</th></tr></thead>
+              <thead><tr><th>Postulante</th><th>Oferta</th><th>Fecha de postulación</th><th>Mensaje</th><th>Estado</th><th>Entrevista</th></tr></thead>
               <tbody>
                 {postulaciones.map((item) => (
                   <Fragment key={item.id}>
                     <tr>
                       <td><strong>{item.nombre || "Postulante"}</strong><small className="d-block"><a href={`mailto:${item.correo}`}>{item.correo}</a></small><small className="d-block text-secondary">{item.telefono}</small></td>
                       <td>{item.ofertaTitulo || "—"}</td>
+                      <td>{fechaPostulacion(item.fecha) || "—"}</td>
+                      <td className="postulacion-mensaje">{item.mensaje?.trim() || "—"}</td>
                       <td>
                         {esAdmin ? (
                           <label className="visually-hidden" htmlFor={`postulacion-estado-${item.id}`}>Estado de {item.nombre}</label>
@@ -236,7 +249,7 @@ export default function PostulacionesPage({ sesion }) {
                     </tr>
                     {esAdmin && formularioId === item.id && (
                       <tr>
-                        <td colSpan="4">
+                        <td colSpan="6">
                           <form className="card card-body caja caja--azul p-3" onSubmit={(evento) => enviarEntrevista(evento, item)}>
                             <div className="d-flex justify-content-between align-items-center gap-2 mb-2">
                               <h2 className="h5 mb-0">{item.entrevista?.estado === "Agendada" ? "Reprogramar entrevista" : "Agendar entrevista"}</h2>
@@ -274,7 +287,7 @@ export default function PostulacionesPage({ sesion }) {
                     )}
                   </Fragment>
                 ))}
-                {postulaciones.length === 0 && <tr><td colSpan="4" className="text-center text-secondary py-4">Aún no hay postulaciones recibidas.</td></tr>}
+                {postulaciones.length === 0 && <tr><td colSpan="6" className="text-center text-secondary py-4">Aún no hay postulaciones recibidas.</td></tr>}
               </tbody>
             </table>
           </div>

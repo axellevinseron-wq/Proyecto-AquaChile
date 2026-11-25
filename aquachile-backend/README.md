@@ -28,6 +28,7 @@ El frontend usa `http://localhost:8080` por defecto. Configura `VITE_API_URL` si
 
 ## Funcionalidades adaptadas
 
+- **Portal público de empleos:** disponible en `/` y `/empleos`, con ofertas compartibles en `/empleos/{id}`; `/oportunidades` se conserva como alias y `/acceso` abre el inicio de sesión del equipo. Las postulaciones admiten un mensaje opcional de hasta 1500 caracteres y muestran su fecha y mensaje en la sección «Postulaciones».
 - **CV de postulaciones:** adjunto opcional PDF de hasta 10 MiB. Se almacena en `UPLOAD_DIR` (por defecto `./uploads`), fuera del directorio público. ADMIN, ANALISTA_RECLUTAMIENTO y EVALUADOR pueden consultar y descargarlo; solo ADMIN puede eliminarlo.
 - **Invitaciones:** desde la sección «Invitaciones», ADMIN crea accesos para los roles del sistema. Los enlaces son de un solo uso y vencen en 24 horas. La solicitud pública de acceso existente continúa disponible. Si se configura `RESEND_API_KEY`, el enlace se envía por correo; si no, el panel permite copiarlo para compartirlo directamente.
 - **Google Calendar y Meet:** desde «Postulaciones», ADMIN cambia el estado a «Entrevista» y puede agendar, reprogramar o cancelar la cita. Google Calendar envía la invitación al correo de la persona postulante. La cuenta autorizada para crear la cita debe ser la misma que la modifica o cancela.

@@ -1,53 +1,152 @@
-/* 
-   PORTAL PUBLICO DE OPORTUNIDADES 
-*/
-
 .portal-empleo {
+  --portal-azul: #073b5c;
+  --portal-azul-claro: #087cad;
+  --portal-turquesa: #00a6a6;
+  --portal-tinta: #17364a;
+  --portal-fondo: #f3f7f8;
   min-height: 100vh;
-  background: #f5f7fa;
+  color: var(--portal-tinta);
+  background: var(--portal-fondo);
 }
 
 .portal-header {
-  background:
-    linear-gradient(
-      90deg,
-      #063b65,
-      #0878b9
-    );
-
+  position: relative;
+  z-index: 1;
+  background: linear-gradient(110deg, #063653, #0879a8);
   color: white;
+  box-shadow: 0 3px 14px rgb(3 41 61 / 18%);
+}
+
+.portal-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  color: white;
+  font-size: 1.25rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.portal-brand:hover {
+  color: white;
+}
+
+.portal-brand img {
+  width: 2.7rem;
+  height: 2.7rem;
+  object-fit: contain;
+  border-radius: 50%;
+  background: white;
+}
+
+.portal-header .btn {
+  border-radius: 999px;
+  font-weight: 600;
 }
 
 .portal-hero {
+  position: relative;
+  overflow: hidden;
+  color: white;
   background:
-    linear-gradient(
-      135deg,
-      #e9f5fb,
-      #f8fbfd
-    );
+    radial-gradient(ellipse at 85% 20%, rgb(0 185 190 / 24%), transparent 36%),
+    linear-gradient(120deg, #064567, #087eaa 62%, #0b969e);
+}
 
-  border-bottom:
-    1px solid #dce5eb;
+.portal-hero .container {
+  position: relative;
+  z-index: 1;
+  padding-top: clamp(3rem, 8vw, 5.5rem) !important;
+  padding-bottom: clamp(3rem, 8vw, 5.5rem) !important;
+}
+
+.portal-hero h1 {
+  max-width: 900px;
+  margin-inline: auto;
+  letter-spacing: -0.035em;
+}
+
+.portal-hero .lead {
+  max-width: 650px;
+  margin: 1rem auto 0;
+  color: rgb(255 255 255 / 88%);
+}
+
+.portal-hero .form-control,
+.portal-hero .form-select {
+  min-height: 3.25rem;
+  border: 0;
+  border-radius: 0.75rem;
+  box-shadow: 0 5px 18px rgb(0 34 52 / 15%);
+}
+
+.portal-empleo main.container {
+  max-width: 1160px;
+  min-height: 28rem;
+}
+
+.portal-empleo .card {
+  border: 1px solid #e0e9ec !important;
+  border-radius: 1rem;
+  box-shadow: 0 8px 26px rgb(10 54 74 / 7%) !important;
 }
 
 .oferta-publica-card {
-  transition:
-    transform 0.2s ease,
-    box-shadow 0.2s ease;
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
 }
 
 .oferta-publica-card:hover {
-  transform:
-    translateY(-4px);
+  transform: translateY(-4px);
+  border-color: #9dcbd2 !important;
+  box-shadow: 0 15px 32px rgb(10 54 74 / 13%) !important;
+}
 
-  box-shadow:
-    0 8px 20px
-    rgba(0, 0, 0, 0.12)
-    !important;
+.portal-empleo .badge.text-bg-primary,
+.portal-empleo .btn-success {
+  background-color: var(--portal-turquesa) !important;
+}
+
+.portal-empleo .btn-primary {
+  background-color: var(--portal-azul-claro);
+  border-color: var(--portal-azul-claro);
+}
+
+.portal-empleo .btn {
+  border-radius: 0.65rem;
+  font-weight: 600;
+}
+
+.portal-empleo .form-control,
+.portal-empleo .form-select {
+  border-color: #cbd9de;
+  border-radius: 0.65rem;
+}
+
+.portal-empleo .form-control:focus,
+.portal-empleo .form-select:focus {
+  border-color: #39a7b3;
+  box-shadow: 0 0 0 0.2rem rgb(0 166 166 / 15%);
 }
 
 .portal-footer {
-  margin-top: 50px;
-  background: #143c5c;
+  margin-top: 3rem;
+  background: #073650;
   color: white;
+}
+
+.postulacion-mensaje {
+  max-width: 22rem;
+  min-width: 12rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .oferta-publica-card {
+    transition: none;
+  }
+
+  .oferta-publica-card:hover {
+    transform: none;
+  }
 }

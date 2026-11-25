@@ -69,7 +69,9 @@ public class EntrevistaService {
                     candidato == null ? "" : candidato.correo(),
                     candidato == null ? "" : candidato.telefono(),
                     oferta == null ? "" : oferta.titulo(),
-                    estadoVisible(postulacion.estado()), null, null,
+                    estadoVisible(postulacion.estado()),
+                    postulacion.fechaCreacion(),
+                    postulacion.mensaje(),
                     cv == null ? null : new CvResumen(cv.nombreArchivo()),
                     EntrevistaResumen.desde(citas.get(postulacion.id())));
         }).toList();
@@ -80,7 +82,8 @@ public class EntrevistaService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El estado de postulación no es válido.");
         }
         Postulacion actual = obtenerPostulacion(id);
-        postulaciones.save(new Postulacion(actual.id(), actual.ofertaId(), actual.postulanteId(), estado));
+        postulaciones.save(new Postulacion(actual.id(), actual.ofertaId(), actual.postulanteId(),
+                estado, actual.fechaCreacion(), actual.mensaje()));
         return listar().stream().filter(item -> item.id().equals(id)).findFirst().orElseThrow();
     }
 

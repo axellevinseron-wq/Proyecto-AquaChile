@@ -119,6 +119,9 @@ function LoginPage({ onLogin }) {
         </button>
 
         <div className="login-accesos">
+          <Link to="/" className="login-olvido">
+            Volver al portal de empleos
+          </Link>
           <Link to="/solicitud?tab=enviar" className="login-olvido">
             Enviar una solicitud de acceso
           </Link>

@@ -7,6 +7,6 @@ import cl.aquachile.backend.postulacion.repository.PostulacionRepository;import 
  public Postulacion obtener(UUID id){return repo.obtener(id).orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Postulacion no encontrado"));}
  private void validar(PostulacionRequest r){if(!ofertas.existsById(r.ofertaId()))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Oferta inexistente");if(!postulantes.existsById(r.postulanteId()))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Postulante inexistente");}
  public Postulacion crear(PostulacionRequest r){validar(r);return repo.guardar(new Postulacion(UUID.randomUUID(),r.ofertaId(), r.postulanteId(), r.estado()));}
- public Postulacion actualizar(UUID id,PostulacionRequest r){obtener(id);validar(r);return repo.guardar(new Postulacion(id,r.ofertaId(), r.postulanteId(), r.estado()));}
+ public Postulacion actualizar(UUID id,PostulacionRequest r){Postulacion actual=obtener(id);validar(r);return repo.guardar(new Postulacion(id,r.ofertaId(), r.postulanteId(), r.estado(),actual.fechaCreacion(),actual.mensaje()));}
  public void eliminar(UUID id){obtener(id);repo.eliminar(id);}
 }

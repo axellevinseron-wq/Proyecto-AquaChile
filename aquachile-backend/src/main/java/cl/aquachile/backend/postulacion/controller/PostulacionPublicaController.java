@@ -8,8 +8,6 @@ import cl.aquachile.backend.postulante.repository.PostulanteRepository;
 import cl.aquachile.backend.postulacion.entity.Postulacion;
 import cl.aquachile.backend.postulacion.repository.PostulacionRepository;
 import jakarta.transaction.Transactional;
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
@@ -17,6 +15,7 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 import java.io.IOException;
 import java.nio.file.*;
+import java.time.Instant;
 import java.util.*;
 
 @RestController
@@ -40,9 +39,13 @@ public class PostulacionPublicaController {
             @RequestParam String nombre, @RequestParam String correo,
             @RequestParam(required=false,defaultValue="") String telefono,
             @RequestParam(required=false,defaultValue="") String rut,
+            @RequestParam(required=false,defaultValue="") String mensaje,
             @RequestParam(value="cv", required=false) MultipartFile cv) {
         if (nombre.isBlank() || !correo.matches("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$"))
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Nombre o correo invalido");
+        String mensajePostulante = Objects.toString(mensaje, "").trim();
+        if (mensajePostulante.length() > 1500)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El mensaje no puede superar los 1500 caracteres");
         if (ofertas.findById(ofertaId).filter(o -> o.publicada()).isEmpty())
             throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Oferta no disponible");
         boolean adjuntoCv = cv != null && !cv.isEmpty();
@@ -88,7 +91,8 @@ public class PostulacionPublicaController {
 
         try {
             postulantes.save(new Postulante(postulanteId,nombre.trim(),correo.trim().toLowerCase(Locale.ROOT),telefono,rut));
-            postulaciones.save(new Postulacion(postulacionId,ofertaId,postulanteId,"PENDIENTE"));
+            postulaciones.save(new Postulacion(postulacionId, ofertaId, postulanteId,
+                    "PENDIENTE", Instant.now(), mensajePostulante));
             if (adjuntoCv) {
                 String relative=root.relativize(destinoCv).toString().replace('\\', '/');
                 adjuntos.save(new CvAdjunto(archivoId,postulacionId,nombreArchivo,relative));

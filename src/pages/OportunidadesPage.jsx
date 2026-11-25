@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import logoAquachile from "../assets/logo-aquachile.png";
 
 const API =
   import.meta.env.VITE_API_URL ||
@@ -21,7 +22,8 @@ function modalidadTexto(valor) {
   return valor || "No informada";
 }
 
-export default function OportunidadesPage() {
+export default function OportunidadesPage({ ofertaId }) {
+  const navigate = useNavigate();
 
   const [ofertas, setOfertas] =
     useState([]);
@@ -47,36 +49,36 @@ export default function OportunidadesPage() {
     useState(true);
 
   useEffect(() => {
-
-    fetch(`${API}/api/publico/ofertas`)
-      .then((respuesta) => {
-
+    let activa = true;
+    document.title = ofertaId ? "Oferta laboral | AquaChile" : "Empleos | AquaChile";
+    const ruta = ofertaId
+      ? `${API}/api/publico/ofertas/${encodeURIComponent(ofertaId)}`
+      : `${API}/api/publico/ofertas`;
+    fetch(ruta)
+      .then(async (respuesta) => {
+        const datos = await respuesta.json();
         if (!respuesta.ok) {
-          throw new Error(
-            "No se pudieron cargar las ofertas."
-          );
+          throw new Error(datos.message || "No se pudieron cargar las ofertas.");
         }
-
-        return respuesta.json();
+        if (!activa) return;
+        if (ofertaId) {
+          setSeleccion(datos);
+        } else {
+          setSeleccion(null);
+          setOfertas(Array.isArray(datos) ? datos : []);
+        }
+        setMensaje("");
       })
-
-      .then((datos) => {
-        setOfertas(
-          Array.isArray(datos)
-            ? datos
-            : []
-        );
-      })
-
       .catch((error) => {
-        setMensaje(error.message);
+        if (activa) setMensaje(error.message);
       })
-
       .finally(() => {
-        setCargando(false);
+        if (activa) setCargando(false);
       });
-
-  }, []);
+    return () => {
+      activa = false;
+    };
+  }, [ofertaId]);
 
   const categorias = useMemo(() => {
 
@@ -131,37 +133,12 @@ export default function OportunidadesPage() {
     categoria,
   ]);
 
-  async function verDetalle(oferta) {
-
+  function verDetalle(oferta) {
     setMensaje("");
     setMostrarFormulario(false);
-
-    try {
-
-      const respuesta =
-        await fetch(
-          `${API}/api/publico/ofertas/${oferta.id}`
-        );
-
-      const datos =
-        await respuesta.json();
-
-      if (!respuesta.ok) {
-        throw new Error(
-          "No se pudo abrir la oferta."
-        );
-      }
-
-      setSeleccion(datos);
-
-      window.scrollTo({
-        top: 0,
-        behavior: "smooth",
-      });
-
-    } catch (error) {
-      setMensaje(error.message);
-    }
+    setCargando(true);
+    navigate(`/empleos/${encodeURIComponent(oferta.id)}`);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   async function postular(evento) {
@@ -223,22 +200,13 @@ export default function OportunidadesPage() {
     <div className="portal-empleo">
 
       <header className="portal-header">
-
         <div className="container py-3 d-flex justify-content-between align-items-center">
-
-          <strong className="fs-4">
-            AquaChile
-          </strong>
-
-          <Link
-            to="/inicio"
-            className="btn btn-outline-light"
-          >
-            Acceso interno
+          <Link className="portal-brand" to="/empleos" aria-label="AquaChile Empleos">
+            <img src={logoAquachile} alt="" />
+            <span>AquaChile <strong>Empleos</strong></span>
           </Link>
-
+          <Link to="/acceso" className="btn btn-outline-light">Acceso equipo</Link>
         </div>
-
       </header>
 
       <section className="portal-hero">
@@ -339,6 +307,8 @@ export default function OportunidadesPage() {
                   onClick={() => {
                     setSeleccion(null);
                     setMostrarFormulario(false);
+                    setCargando(true);
+                    navigate("/empleos");
                   }}
                 >
                   ← Volver a oportunidades
@@ -467,21 +437,23 @@ export default function OportunidadesPage() {
                       value={seleccion.id}
                     />
 
-                    <label className="form-label">
+                    <label className="form-label" htmlFor="postulacion-nombre">
                       Nombre completo
                     </label>
 
                     <input
+                      id="postulacion-nombre"
                       name="nombre"
                       className="form-control mb-3"
                       required
                     />
 
-                    <label className="form-label">
+                    <label className="form-label" htmlFor="postulacion-correo">
                       Correo
                     </label>
 
                     <input
+                      id="postulacion-correo"
                       name="correo"
                       type="email"
                       className="form-control mb-3"
@@ -503,6 +475,17 @@ export default function OportunidadesPage() {
 
                     <input
                       name="rut"
+                      className="form-control mb-3"
+                    />
+
+                    <label className="form-label" htmlFor="postulacion-mensaje">
+                      Cuéntanos brevemente sobre ti <span className="text-secondary">(opcional)</span>
+                    </label>
+                    <textarea
+                      id="postulacion-mensaje"
+                      name="mensaje"
+                      rows="4"
+                      maxLength={1500}
                       className="form-control mb-3"
                     />
 

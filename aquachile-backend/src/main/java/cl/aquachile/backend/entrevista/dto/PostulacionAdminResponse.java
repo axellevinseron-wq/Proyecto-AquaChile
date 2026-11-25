@@ -1,5 +1,6 @@
 package cl.aquachile.backend.entrevista.dto;
 
+import java.time.Instant;
 import java.util.UUID;
 
 public record PostulacionAdminResponse(
@@ -9,7 +10,7 @@ public record PostulacionAdminResponse(
         String telefono,
         String ofertaTitulo,
         String estado,
-        String fecha,
+        Instant fecha,
         String mensaje,
         CvResumen cv,
         EntrevistaResumen entrevista
