@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import Icon from "./Icon";
 import { useToast } from "./Toast";
 import { actualizarPerfil, obtenerUsuarios, PERMISOS, permisosDe } from "../auth";
@@ -48,11 +48,8 @@ function validar(datos) {
 
 function PerfilPanel({ sesion }) {
   const { notificar } = useToast();
-  const version = useDatosAcceso();
-  const usuario = useMemo(
-    () => obtenerUsuarios().find((u) => u.usuario === sesion.usuario) ?? { usuario: sesion.usuario, rol: sesion.rol },
-    [sesion, version],
-  );
+  useDatosAcceso();
+  const usuario = obtenerUsuarios().find((u) => u.usuario === sesion.usuario) ?? { usuario: sesion.usuario, rol: sesion.rol };
   const [editando, setEditando] = useState(false);
   const [formulario, setFormulario] = useState(null);
   const [errores, setErrores] = useState({});

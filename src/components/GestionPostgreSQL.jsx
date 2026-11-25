@@ -29,13 +29,24 @@ export default function GestionPostgreSQL({ vista, sesion }) {
     try {
       const [postulantes, postulaciones, ofertas, solicitudes] = await Promise.all([
         apiFetch("/api/postulantes"), apiFetch("/api/postulaciones"),
-        apiFetch("/api/ofertas"), apiFetch("/api/solicitudes"),
+        apiFetch("/api/ofertas"), sesion.rolApi === "ANALISTA_RECLUTAMIENTO" ? Promise.resolve([]) : apiFetch("/api/solicitudes"),
       ]);
       setDatos({ postulantes, postulaciones, ofertas, solicitudes });
     } catch (e) { setError(e.message || "No fue posible cargar PostgreSQL."); }
     finally { setCargando(false); }
   }
-  useEffect(() => { actualizar(); }, []);
+  useEffect(() => {
+    let vigente = true;
+    Promise.all([
+      apiFetch("/api/postulantes"), apiFetch("/api/postulaciones"),
+      apiFetch("/api/ofertas"), sesion.rolApi === "ANALISTA_RECLUTAMIENTO" ? Promise.resolve([]) : apiFetch("/api/solicitudes"),
+    ]).then(([postulantes, postulaciones, ofertas, solicitudes]) => {
+      if (vigente) setDatos({ postulantes, postulaciones, ofertas, solicitudes });
+    }).catch((e) => {
+      if (vigente) setError(e.message || "No fue posible cargar PostgreSQL.");
+    }).finally(() => { if (vigente) setCargando(false); });
+    return () => { vigente = false; };
+  }, [sesion.rolApi]);
 
   const personas = useMemo(() => new Map(datos.postulantes.map(p => [p.id, p])), [datos.postulantes]);
   const ofertas = useMemo(() => new Map(datos.ofertas.map(o => [o.id, o])), [datos.ofertas]);

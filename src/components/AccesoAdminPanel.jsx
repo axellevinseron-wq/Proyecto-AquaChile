@@ -39,7 +39,17 @@ export default function AccesoAdminPanel() {
     finally { setCargando(false); }
   }, []);
 
-  useEffect(() => { cargar(); }, [cargar]);
+  useEffect(() => {
+    let vigente = true;
+    apiFetch("/api/admin/solicitudes-acceso").then((datos) => {
+      if (!vigente) return;
+      setSolicitudes(Array.isArray(datos) ? datos : []);
+      setError("");
+    }).catch((e) => {
+      if (vigente) setError(e.message || "No se pudieron cargar las solicitudes.");
+    }).finally(() => { if (vigente) setCargando(false); });
+    return () => { vigente = false; };
+  }, []);
 
   const visibles = useMemo(() => solicitudes.filter((s) => {
     if (filtro && s.estado !== filtro) return false;

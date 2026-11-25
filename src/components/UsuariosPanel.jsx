@@ -42,7 +42,17 @@ export default function UsuariosPanel() {
     }
   }
 
-  useEffect(() => { cargar(); }, []);
+  useEffect(() => {
+    let vigente = true;
+    apiFetch("/api/usuarios").then((datos) => {
+      if (!vigente) return;
+      if (!Array.isArray(datos)) throw new Error("El servidor no devolvió una lista de usuarios.");
+      setUsuarios(datos);
+    }).catch((e) => {
+      if (vigente) setError(`No fue posible cargar los usuarios de PostgreSQL: ${e.message}`);
+    }).finally(() => { if (vigente) setCargando(false); });
+    return () => { vigente = false; };
+  }, []);
 
   const filtrados = useMemo(() => usuarios.filter((u) =>
     [u.nombre, u.correo, u.rol, etiquetaRol(u.rol)]

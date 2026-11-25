@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
-import OfertasPanel from "../components/OfertasPanel";
 import IndicadorCard from "../components/IndicadorCard";
 import GestionPostgreSQL from "../components/GestionPostgreSQL";
 import Calendario from "../components/Calendario";
@@ -10,6 +9,7 @@ import GraficoDiasMes from "../components/GraficoDiasMes";
 
 import UltimasSolicitudes from "../components/UltimasSolicitudes";
 import AccesoAdminPanel from "../components/AccesoAdminPanel";
+import OfertasAdminPanel from "../components/OfertasAdminPanel";
 import UsuariosPanel from "../components/UsuariosPanel";
 import EvaluacionCvPage from "./EvaluacionCvPage";
 
@@ -17,9 +17,9 @@ import { apiFetch } from "../apiClient";
 import { hoyClave } from "../fechas";
 import { calcularIndicadores } from "../logica";
 
-const VISTAS = ["inicio", "indicadores", "candidatos", "solicitudes","ofertas", "evaluacion-cv"];
+const VISTAS = ["inicio", "indicadores", "candidatos", "solicitudes", "evaluacion-cv"];
 // Secciones que solo ven los administradores.
-const VISTAS_ADMIN = ["cuentas", "usuarios"];
+const VISTAS_ADMIN = ["cuentas", "usuarios", "ofertas"];
 
 function DashboardPage({ sesion }) {
   const esAdmin = sesion.rol === "Administrador";
@@ -39,7 +39,7 @@ function DashboardPage({ sesion }) {
     Promise.all([
       apiFetch("/api/postulantes"),
       apiFetch("/api/postulaciones"),
-      apiFetch("/api/solicitudes"),
+      sesion.rolApi === "ANALISTA_RECLUTAMIENTO" ? Promise.resolve([]) : apiFetch("/api/solicitudes"),
     ]).then(([postulantes, postulaciones, solicitudesApi]) => {
       if (activo) {
         setDatosReales({ postulantes, postulaciones, solicitudes: solicitudesApi });
@@ -53,7 +53,7 @@ function DashboardPage({ sesion }) {
       }
     });
     return () => { activo = false; };
-  }, [vista]);
+  }, [vista, sesion.rolApi]);
 
   // Se presentan las postulaciones reales, incluidas las cargadas al iniciar
   // Spring Boot. Si una postulación tiene solicitud de evaluación, se usa
@@ -65,9 +65,9 @@ function DashboardPage({ sesion }) {
       const evaluacion = evaluaciones.get(p.id);
       const estadoCrudo = String(evaluacion?.estado || p.estado || "PENDIENTE").toUpperCase();
       const estado = estadoCrudo.includes("FINAL") || estadoCrudo.includes("COMPLET") || estadoCrudo.includes("APROB")
-          ? "Finalizada"
-          : estadoCrudo.includes("PROCES") || estadoCrudo.includes("EVALUACION")
-              ? "En proceso" : "Pendiente";
+        ? "Finalizada"
+        : estadoCrudo.includes("PROCES") || estadoCrudo.includes("EVALUACION")
+          ? "En proceso" : "Pendiente";
       return {
         id: p.id,
         candidatoId: p.postulanteId,
@@ -93,141 +93,131 @@ function DashboardPage({ sesion }) {
 
   // Si la URL no es una sección válida, o el usuario no tiene permiso para verla, vuelve al inicio.
   const esVistaAdmin = VISTAS_ADMIN.includes(vista);
-
-  const esVistaOfertas =vista === "ofertas";
-
-  const rolPuedeVerOfertas = ["ADMIN","ANALISTA_RECLUTAMIENTO","EVALUADOR",].includes(sesion.rolApi);
-
   const permitida =
-
-      vista === "inicio" ||
-      (esVistaOfertas && rolPuedeVerOfertas)||
-
-      (VISTAS.includes(vista) && !esVistaOfertas && 
-      sesion.permisos?.[vista === "evaluacion-cv" ? "candidatos" : vista] !== false) ||
-      (esVistaAdmin && esAdmin);
-  
+    vista === "inicio" ||
+    (VISTAS.includes(vista) && sesion.permisos?.[vista === "evaluacion-cv" ? "candidatos" : vista] !== false) ||
+    (esVistaAdmin && esAdmin);
   if (!permitida) {
     return <Navigate to="/inicio" replace />;
   }
 
   const estadoIndicadores = cargandoIndicadores
-      ? <p role="status">Cargando indicadores desde PostgreSQL…</p>
-      : errorIndicadores
-          ? <div role="alert" className="alert alert-danger">No se pudieron cargar los indicadores: {errorIndicadores}</div>
-          : null;
+    ? <p role="status">Cargando indicadores desde PostgreSQL…</p>
+    : errorIndicadores
+      ? <div role="alert" className="alert alert-danger">No se pudieron cargar los indicadores: {errorIndicadores}</div>
+      : null;
 
   const tarjetas = (
-      <section className="row g-3 mb-4" aria-label="Indicadores del proceso">
-        {indicadoresReales.map((indicador) => (
-            <IndicadorCard
-                key={indicador.id}
-                valor={indicador.valor}
-                titulo={indicador.titulo}
-                color={indicador.color}
-            />
-        ))}
-      </section>
+    <section className="row g-3 mb-4" aria-label="Indicadores del proceso">
+      {indicadoresReales.map((indicador) => (
+        <IndicadorCard
+          key={indicador.id}
+          valor={indicador.valor}
+          titulo={indicador.titulo}
+          color={indicador.color}
+        />
+      ))}
+    </section>
   );
 
   return (
-      <main className="contenido">
-        {vista === "inicio" && (
-            <>
-              <h1 className="h3 mb-3">Inicio</h1>
-              {estadoIndicadores}
-              {!cargandoIndicadores && !errorIndicadores && tarjetas}
+    <main className="contenido">
+      {vista === "inicio" && (
+        <>
+          <h1 className="h3 mb-3">Inicio</h1>
+          {estadoIndicadores}
+          {!cargandoIndicadores && !errorIndicadores && tarjetas}
 
-              {!cargandoIndicadores && !errorIndicadores && <section className="row g-3" aria-label="Calendario y estadística diaria">
-                <div className="col-12 col-lg-5">
-                  <div className="card card-body caja caja--azul h-100">
-                    <h2 className="h5 mb-3">Calendario</h2>
-                    <Calendario
-                        seleccionada={diaElegido}
-                        onSeleccionar={setDiaElegido}
-                        conteos={conteosReales}
-                    />
-                  </div>
-                </div>
-                <div className="col-12 col-lg-7">
-                  <div className="card card-body caja caja--azul h-100">
-                    <EstadisticaDia
-                        fecha={diaElegido}
-                        solicitudes={solicitudesReales}
-                        totalCandidatos={datosReales.postulantes.length}
-                    />
-                  </div>
-                </div>
-              </section>}
-            </>
-        )}
-
-        {vista === "indicadores" && (
-            <>
-              <h1 className="h3 mb-3">Indicadores</h1>
-              {estadoIndicadores}
-              {!cargandoIndicadores && !errorIndicadores && tarjetas}
-
-              {!cargandoIndicadores && !errorIndicadores && <p className="small text-secondary">Las postulaciones se cuentan desde PostgreSQL. Las fechas solo aparecen cuando existe una solicitud de evaluación con fecha registrada.</p>}
-              {!cargandoIndicadores && !errorIndicadores && <div className="row g-3">
-                <div className="col-12 col-lg-6 d-flex flex-column gap-3">
-                  <div className="card card-body caja caja--azul">
-                    <h2 className="h5 mb-3">Postulaciones por estado</h2>
-                    <BarrasEstado solicitudes={solicitudesReales} />
-                  </div>
-
-                  <div className="card card-body caja caja--azul">
-                    <h2 className="h5 mb-3">Solicitudes de evaluación por día</h2>
-                    <GraficoDiasMes solicitudes={solicitudesReales.filter((s) => s.fechaSolicitud)} />
-                  </div>
-                </div>
-
-                <div className="col-12 col-lg-6">
-                  <div className="card card-body caja caja--azul h-100">
-                    <h2 className="h5 mb-3">Últimas solicitudes de evaluación</h2>
-                    <UltimasSolicitudes solicitudes={solicitudesReales.filter((s) => s.fechaSolicitud)} />
-                  </div>
-                </div>
-              </div>}
-            </>
-        )}
-
-        {(vista === "candidatos" || vista === "solicitudes") && (
-            <>
-              <div className="gestion-cambio" role="group" aria-label="Cambiar entre candidatos y solicitudes">
-                {[
-                  { id: "candidatos", texto: "Candidatos" },
-                  { id: "solicitudes", texto: "Solicitudes" },
-                ]
-                    .filter((opcion) => sesion.permisos?.[opcion.id] !== false)
-                    .map((opcion) => (
-                        <button
-                            key={opcion.id}
-                            type="button"
-                            className={vista === opcion.id ? "gestion-cambio__boton activo" : "gestion-cambio__boton"}
-                            aria-pressed={vista === opcion.id}
-                            onClick={() => navigate("/" + opcion.id)}
-                        >
-                          {opcion.texto}
-                        </button>
-                    ))}
+          {!cargandoIndicadores && !errorIndicadores && <section className="row g-3" aria-label="Calendario y estadística diaria">
+            <div className="col-12 col-lg-5">
+              <div className="card card-body caja caja--azul h-100">
+                <h2 className="h5 mb-3">Calendario</h2>
+                <Calendario
+                  seleccionada={diaElegido}
+                  onSeleccionar={setDiaElegido}
+                  conteos={conteosReales}
+                />
               </div>
-              <GestionPostgreSQL key={vista} vista={vista} sesion={sesion} />
-            </>
-        )}
+            </div>
+            <div className="col-12 col-lg-7">
+              <div className="card card-body caja caja--azul h-100">
+                <EstadisticaDia
+                  fecha={diaElegido}
+                  solicitudes={solicitudesReales}
+                  totalCandidatos={datosReales.postulantes.length}
+                />
+              </div>
+            </div>
+          </section>}
+        </>
+      )}
 
-        {vista === "ofertas" && (<OfertasPanel sesion={sesion} />)}
+      {vista === "indicadores" && (
+        <>
+          <h1 className="h3 mb-3">Indicadores</h1>
+          {estadoIndicadores}
+          {!cargandoIndicadores && !errorIndicadores && tarjetas}
 
-        {vista === "evaluacion-cv" && <EvaluacionCvPage />}
+          {!cargandoIndicadores && !errorIndicadores && <p className="small text-secondary">Las postulaciones se cuentan desde PostgreSQL. Las fechas solo aparecen cuando existe una solicitud de evaluación con fecha registrada.</p>}
+          {!cargandoIndicadores && !errorIndicadores && <div className="row g-3">
+            <div className="col-12 col-lg-6 d-flex flex-column gap-3">
+              <div className="card card-body caja caja--azul">
+                <h2 className="h5 mb-3">Postulaciones por estado</h2>
+                <BarrasEstado solicitudes={solicitudesReales} />
+              </div>
 
-        {vista === "cuentas" && <AccesoAdminPanel autor={sesion.usuario} />}
+              <div className="card card-body caja caja--azul">
+                <h2 className="h5 mb-3">Solicitudes de evaluación por día</h2>
+                <GraficoDiasMes solicitudes={solicitudesReales.filter((s) => s.fechaSolicitud)} />
+              </div>
+            </div>
 
-        {vista === "usuarios" && <UsuariosPanel usuarioActual={sesion.usuario} />}
+            <div className="col-12 col-lg-6">
+              <div className="card card-body caja caja--azul h-100">
+                <h2 className="h5 mb-3">Últimas solicitudes de evaluación</h2>
+                <UltimasSolicitudes solicitudes={solicitudesReales.filter((s) => s.fechaSolicitud)} />
+              </div>
+            </div>
+          </div>}
+        </>
+      )}
 
-        <p className="small text-secondary mt-4 mb-0">
-          Los postulantes, postulaciones, solicitudes de evaluación y solicitudes de acceso se consultan en PostgreSQL. Algunas preferencias auxiliares pueden permanecer en el navegador.
-        </p>
-      </main>
+      {(vista === "candidatos" || vista === "solicitudes") && (
+        <>
+          <div className="gestion-cambio" role="group" aria-label="Cambiar entre candidatos y solicitudes">
+            {[
+              { id: "candidatos", texto: "Candidatos" },
+              { id: "solicitudes", texto: "Solicitudes" },
+            ]
+              .filter((opcion) => sesion.permisos?.[opcion.id] !== false)
+              .map((opcion) => (
+                <button
+                  key={opcion.id}
+                  type="button"
+                  className={vista === opcion.id ? "gestion-cambio__boton activo" : "gestion-cambio__boton"}
+                  aria-pressed={vista === opcion.id}
+                  onClick={() => navigate("/" + opcion.id)}
+                >
+                  {opcion.texto}
+                </button>
+              ))}
+          </div>
+          <GestionPostgreSQL key={vista} vista={vista} sesion={sesion} />
+        </>
+      )}
+
+      {vista === "evaluacion-cv" && <EvaluacionCvPage />}
+
+      {vista === "cuentas" && <AccesoAdminPanel autor={sesion.usuario} />}
+
+      {vista === "ofertas" && <OfertasAdminPanel />}
+
+      {vista === "usuarios" && <UsuariosPanel usuarioActual={sesion.usuario} />}
+
+      <p className="small text-secondary mt-4 mb-0">
+        Los postulantes, postulaciones, solicitudes de evaluación y solicitudes de acceso se consultan en PostgreSQL. Algunas preferencias auxiliares pueden permanecer en el navegador.
+      </p>
+    </main>
   );
 }
 

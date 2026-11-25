@@ -86,7 +86,7 @@ export async function loginApi(correo, password) {
     permisos: {
       indicadores: true,
       candidatos: true,
-      solicitudes: true,
+      solicitudes: respuesta.rol !== "ANALISTA_RECLUTAMIENTO",
     },
   };
 

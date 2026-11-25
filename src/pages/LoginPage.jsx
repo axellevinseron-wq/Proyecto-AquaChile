@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import Icon from "../components/Icon";
-import { tieneSolicitudPendiente } from "../auth";
 import { loginApi } from "../apiClient";
 
 const CLAVE_USUARIO = "vcm-usuario-recordado";
@@ -22,7 +21,7 @@ function guardarUsuarioRecordado(valor) {
       localStorage.removeItem(CLAVE_USUARIO);
     }
   } catch {
-    
+    // El almacenamiento del navegador puede estar deshabilitado.
   }
 }
 
@@ -45,9 +44,7 @@ function LoginPage({ onLogin }) {
     try {
       sesion = await loginApi(nombre, clave);
     } catch {
-      setMensaje(tieneSolicitudPendiente(nombre)
-        ? "Tu solicitud de cuenta aún está pendiente de aprobación."
-        : "No fue posible iniciar sesión. Revisa tus credenciales y la conexión con el servidor.");
+      setMensaje("No fue posible iniciar sesión. Revisa tus credenciales y la conexión con el servidor.");
       return;
     }
     guardarUsuarioRecordado(recordar ? nombre : "");
@@ -119,6 +116,7 @@ function LoginPage({ onLogin }) {
         </button>
 
         <div className="login-accesos">
+          <Link to="/empleos" className="login-olvido">Ver ofertas de trabajo</Link>
           <Link to="/solicitud?tab=enviar" className="login-olvido">
             Enviar una solicitud de acceso
           </Link>

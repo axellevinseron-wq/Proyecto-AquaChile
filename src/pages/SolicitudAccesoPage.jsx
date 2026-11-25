@@ -117,7 +117,7 @@ function Estado({ inicial }) {
         <div className="sa-result-head"><h3>Resultado de tu solicitud</h3><span className={`sa-status sa-status-${resultado.estado?.toLowerCase()}`}>{etiquetaEstado(resultado.estado)}</span></div>
         {resultado.fechaCreacion && <p><strong>Fecha de envío:</strong> {formatearFecha(resultado.fechaCreacion)}</p>}
         <p><strong>Comentarios del administrador:</strong> {resultado.comentarioAdministrador || "Todavía no hay comentarios."}</p>
-        {resultado.estado === "ACEPTADA" && <p>Tu solicitud fue aceptada. Contacta al administrador para coordinar tus credenciales. <Link to="/">Volver al login</Link>.</p>}
+        {resultado.estado === "ACEPTADA" && <p>Tu solicitud fue aceptada. Contacta al administrador para coordinar tus credenciales. <Link to="/acceso">Volver al login</Link>.</p>}
       </section>}
     </>
   );
@@ -138,7 +138,7 @@ export default function SolicitudAccesoPage() {
   return (
     <div className="sa-page">
       <header className="sa-header">
-        <Link to="/" className="sa-back">← Volver al inicio de sesión</Link>
+        <Link to="/acceso" className="sa-back">← Volver al inicio de sesión</Link>
         <span className="sa-brand">AquaChile · Acceso</span>
       </header>
       <main className="sa-main">

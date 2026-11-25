@@ -8,3 +8,13 @@
 !.env.example
 **/uploads/
 *.log
+**/target/
+**/node_modules/
+**/dist/
+**/coverage/
+**/.idea/
+**/.env
+**/.env.*
+!.env.example
+**/uploads/
+*.log

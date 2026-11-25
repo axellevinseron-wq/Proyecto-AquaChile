@@ -59,8 +59,8 @@ function leer() {
       };
     }
   } catch {
-    
-  }
+      // Si el almacenamiento local no está disponible, se mantienen los valores en memoria.
+    }
   return OPCIONES_INICIALES;
 }
 
@@ -72,7 +72,7 @@ export function useOpciones() {
      
       localStorage.setItem(CLAVE, JSON.stringify({ letra: opciones.letra, sistema: opciones.sistema, colorBarra: opciones.colorBarra, relojEstilo: opciones.relojEstilo, relojFormato: opciones.relojFormato }));
     } catch {
-     
+      // Si el almacenamiento local no está disponible, se mantienen los valores en memoria.
     }
     document.documentElement.setAttribute("data-bs-theme", opciones.oscuro ? "dark" : "light");
     document.documentElement.style.fontSize = `${opciones.letra}%`;

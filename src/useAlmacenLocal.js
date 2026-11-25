@@ -15,7 +15,7 @@ export function useAlmacenLocal(clave, inicial) {
     try {
       localStorage.setItem(clave, JSON.stringify(valor));
     } catch {
-      
+      // Si el almacenamiento local no está disponible, se mantienen los valores en memoria.
     }
   }, [clave, valor]);
 

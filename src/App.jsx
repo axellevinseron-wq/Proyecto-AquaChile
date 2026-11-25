@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import OpcionesPanel from "./components/OpcionesPanel";
 import { FONDOS } from "./fondos";
 import { coloresDesde, useOpciones } from "./opciones";
 import { marcarConexion, marcarDesconexion } from "./auth";
-import { leerSesionApi, guardarSesionApi } from "./apiClient";
+import { leerSesionApi, guardarSesionApi, verificarSesionApi } from "./apiClient";
 import { usePresenciaPropia } from "./usePresencia";
 import AppNavbar from "./components/AppNavbar";
 import Sidebar from "./components/Sidebar";
@@ -12,7 +12,7 @@ import PerfilPanel from "./components/PerfilPanel";
 import DashboardPage from "./pages/DashboardPage";
 import LoginPage from "./pages/LoginPage";
 import SolicitudAccesoPage from "./pages/SolicitudAccesoPage";
-import OportunidadesPage from "./pages/OportunidadesPage";
+import EmpleosPage from "./pages/EmpleosPage";
 import { ToastProvider, useToast } from "./components/Toast";
 
 const ES_ESCRITORIO = "(min-width: 768px)";
@@ -20,6 +20,11 @@ const ES_ESCRITORIO = "(min-width: 768px)";
 function AppInterna() {
   const [usuario, setUsuario] = useState(leerSesionApi);
   const navigate = useNavigate();
+  useEffect(() => {
+    let activo = true;
+    if (leerSesionApi()) verificarSesionApi().then(sesion => { if (activo && !sesion) setUsuario(null); });
+    return () => { activo = false; };
+  }, []);
   const location = useLocation();
   const { notificar } = useToast();
   const [opciones, setOpciones] = useOpciones();
@@ -35,8 +40,8 @@ function AppInterna() {
     }
   }
 
-  if (location.pathname === "/oportunidades") {
-    return <OportunidadesPage />;
+  if (["/", "/oportunidades", "/empleos"].includes(location.pathname) || location.pathname.startsWith("/empleos/")) {
+    return <Routes><Route path="/empleos/:ofertaId" element={<EmpleosPage />} /><Route path="*" element={<EmpleosPage />} /></Routes>;
   }
 
   // Página pública: no necesita iniciar sesión.
@@ -50,6 +55,7 @@ function AppInterna() {
         onLogin={(sesion) => {
           marcarConexion(sesion.usuario);
           setUsuario(sesion);
+          navigate("/inicio");
           notificar(`Sesión iniciada. ¡Bienvenido, ${sesion.usuario}!`);
         }}
       />
@@ -83,7 +89,7 @@ function AppInterna() {
           marcarDesconexion(usuario.usuario);
           guardarSesionApi(null);
           setUsuario(null);
-          navigate("/inicio");
+          navigate("/acceso");
           notificar("Sesión cerrada correctamente.");
         }}
       />
