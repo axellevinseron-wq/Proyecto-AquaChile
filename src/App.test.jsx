@@ -178,6 +178,30 @@ describe("Portal público de empleos", () => {
     await usuario.click(screen.getByRole("button", { name: "Enviar postulación" }));
     expect(await screen.findByText(/Recibimos tu postulación/)).toBeInTheDocument();
   });
+
+  it("permite abrir la programación de entrevista desde una postulación en esa etapa", async () => {
+    const usuario = userEvent.setup();
+    mostrarApp("/empleos");
+    expect(await screen.findByText("Operador/a de Centro de Cultivo")).toBeInTheDocument();
+    await usuario.click(screen.getAllByRole("link", { name: /Ver oferta/ })[0]);
+    expect(await screen.findByRole("heading", { name: "Postula a esta oferta" })).toBeInTheDocument();
+    await usuario.type(screen.getByLabelText("Nombre completo"), "Ana Entrevista");
+    await usuario.type(screen.getByLabelText("Correo electrónico"), "ana.entrevista@example.test");
+    await usuario.type(screen.getByLabelText("Teléfono"), "+56 9 1234 5678");
+    await usuario.click(screen.getByRole("button", { name: "Enviar postulación" }));
+    await screen.findByText(/Recibimos tu postulación/);
+
+    await usuario.click(screen.getByRole("link", { name: "Acceso equipo" }));
+    await iniciarSesion(usuario);
+    await usuario.click(await screen.findByRole("link", { name: "Postulaciones" }));
+    expect(await screen.findByText("Ana Entrevista")).toBeInTheDocument();
+
+    await usuario.selectOptions(screen.getByLabelText("Estado de Ana Entrevista"), "Entrevista");
+    await usuario.click(await screen.findByRole("button", { name: "Agendar entrevista" }));
+    expect(screen.getByRole("heading", { name: "Agendar entrevista" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Fecha y hora")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Confirmar y enviar invitación" })).toBeInTheDocument();
+  });
 });
 
 describe("Administración", () => {

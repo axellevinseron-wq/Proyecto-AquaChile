@@ -1,10 +1,12 @@
 // Aplicación Express: API REST bajo /api y, en producción, también sirve el frontend compilado (dist).
 
 import { existsSync } from "node:fs";
+import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import express from "express";
 import { Resend } from "resend";
 import { crearAlmacen } from "./almacen.js";
+import { crearClienteGoogleCalendar, GoogleCalendarError } from "./googleCalendar.js";
 import { crearSesiones } from "./sesiones.js";
 import { crearAutenticacion, crearLimitador, demasiadosIntentos, manejarErrores, rutaNoEncontrada } from "./middleware.js";
 import {
@@ -30,6 +32,7 @@ import {
   revocarInvitacion,
   sesionDe,
   usuarioPublico,
+  validarDatosEntrevista,
 } from "./dominio.js";
 
 const MINUTOS = 60 * 1000;
@@ -51,6 +54,7 @@ export function crearApp({
   sesiones = crearSesiones(),
   carpetaPublica = null,
   clienteCorreo = undefined,
+  clienteGoogleCalendar = crearClienteGoogleCalendar(),
 } = {}) {
   const app = express();
   const { requiereSesion, requiereAdmin, requierePermiso } = crearAutenticacion({ almacen, sesiones });
@@ -283,6 +287,162 @@ export function crearApp({
     const resultado = actualizarEstadoPostulacion(datos(), id, req.body?.estado);
     if (resultado.ok) almacen.guardar();
     return responder(res, resultado, { postulacion: resultado.postulacion });
+  });
+
+  function tokenGoogleDe(req, res) {
+    const token = req.body?.googleAccessToken;
+    if (typeof token !== "string" || token.length < 20 || token.length > 4096) {
+      res.status(400).json({ error: "Autoriza Google Calendar para continuar." });
+      return null;
+    }
+    return token;
+  }
+
+  function responderErrorGoogle(res, error) {
+    if (!(error instanceof GoogleCalendarError)) throw error;
+    const status = error.status === 401 || error.status === 403 ? 400 : 502;
+    const message = status === 400
+      ? "La autorización de Google venció o no tiene los permisos necesarios. Autoriza nuevamente."
+      : error.message;
+    return res.status(status).json({ error: message });
+  }
+
+  async function validarPropiedadDeEntrevista(res, postulacion, token) {
+    const organizador = await clienteGoogleCalendar.obtenerOrganizador(token);
+    if (organizador !== postulacion.entrevista?.organizador) {
+      res.status(403).json({ error: "Solo la cuenta que organizó esta entrevista puede modificarla." });
+      return false;
+    }
+    return true;
+  }
+
+  api.post("/admin/postulaciones/:id/entrevista", requiereSesion, requiereAdmin, async (req, res) => {
+    const id = idDe(req);
+    if (id === null) return res.status(400).json({ error: "Postulación no válida." });
+    const postulacion = datos().postulaciones.find((item) => item.id === id);
+    if (!postulacion) return res.status(404).json({ error: "La postulación no existe." });
+    if (postulacion.estado !== "Entrevista") {
+      return res.status(409).json({ error: "Cambia el estado de la postulación a Entrevista antes de agendar." });
+    }
+
+    const token = tokenGoogleDe(req, res);
+    if (!token) return undefined;
+    const validacion = validarDatosEntrevista(req.body);
+    if (!validacion.ok) return res.status(validacion.status ?? 400).json({ error: validacion.error });
+
+    try {
+      const organizador = await clienteGoogleCalendar.obtenerOrganizador(token);
+      const entrevistaExistente = postulacion.entrevista;
+      if (entrevistaExistente?.estado === "Agendada") {
+        return res.status(409).json({ error: "Esta postulación ya tiene una entrevista agendada." });
+      }
+      if (
+        entrevistaExistente &&
+        entrevistaExistente.estado !== "Cancelada" &&
+        entrevistaExistente.organizador &&
+        entrevistaExistente.organizador !== organizador
+      ) {
+        return res.status(403).json({ error: "Solo la cuenta que inició esta entrevista puede reintentarla." });
+      }
+
+      const reserva = {
+        ...validacion.entrevista,
+        estado: "Agendando",
+        organizador,
+        eventoId: entrevistaExistente?.estado === "Error" ? entrevistaExistente.eventoId : randomUUID().replaceAll("-", ""),
+        solicitudMeetId: entrevistaExistente?.estado === "Error" ? entrevistaExistente.solicitudMeetId : randomUUID(),
+      };
+      postulacion.entrevista = reserva;
+      almacen.guardar();
+
+      let evento;
+      try {
+        evento = await clienteGoogleCalendar.crearEvento(token, {
+          id: reserva.eventoId,
+          summary: `Entrevista AquaChile - ${postulacion.ofertaTitulo}`,
+          description: `Entrevista de selección con ${postulacion.nombre} para el cargo ${postulacion.ofertaTitulo}.`,
+          start: { dateTime: reserva.inicio, timeZone: reserva.zonaHoraria },
+          end: { dateTime: reserva.fin, timeZone: reserva.zonaHoraria },
+          attendees: [{ email: postulacion.correo }],
+          conferenceData: {
+            createRequest: {
+              requestId: reserva.solicitudMeetId,
+              conferenceSolutionKey: { type: "hangoutsMeet" },
+            },
+          },
+        });
+      } catch (error) {
+        postulacion.entrevista = { ...reserva, estado: "Error" };
+        almacen.guardar();
+        return responderErrorGoogle(res, error);
+      }
+
+      postulacion.entrevista = {
+        ...reserva,
+        estado: "Agendada",
+        enlaceCalendar: evento.htmlLink ?? "",
+        enlaceMeet: evento.hangoutLink ?? evento.conferenceData?.entryPoints?.find((punto) => punto.entryPointType === "video")?.uri ?? "",
+      };
+      almacen.guardar();
+      return res.status(201).json({ postulacion });
+    } catch (error) {
+      return responderErrorGoogle(res, error);
+    }
+  });
+
+  api.patch("/admin/postulaciones/:id/entrevista", requiereSesion, requiereAdmin, async (req, res) => {
+    const id = idDe(req);
+    if (id === null) return res.status(400).json({ error: "Postulación no válida." });
+    const postulacion = datos().postulaciones.find((item) => item.id === id);
+    if (!postulacion) return res.status(404).json({ error: "La postulación no existe." });
+    if (postulacion.entrevista?.estado !== "Agendada") {
+      return res.status(409).json({ error: "No hay una entrevista agendada para reprogramar." });
+    }
+
+    const token = tokenGoogleDe(req, res);
+    if (!token) return undefined;
+    const validacion = validarDatosEntrevista(req.body);
+    if (!validacion.ok) return res.status(validacion.status ?? 400).json({ error: validacion.error });
+
+    try {
+      if (!await validarPropiedadDeEntrevista(res, postulacion, token)) return undefined;
+      const evento = await clienteGoogleCalendar.actualizarEvento(token, postulacion.entrevista.eventoId, {
+        start: { dateTime: validacion.entrevista.inicio, timeZone: validacion.entrevista.zonaHoraria },
+        end: { dateTime: validacion.entrevista.fin, timeZone: validacion.entrevista.zonaHoraria },
+      });
+      postulacion.entrevista = {
+        ...postulacion.entrevista,
+        ...validacion.entrevista,
+        enlaceCalendar: evento.htmlLink ?? postulacion.entrevista.enlaceCalendar,
+        enlaceMeet: evento.hangoutLink ?? postulacion.entrevista.enlaceMeet,
+      };
+      almacen.guardar();
+      return res.json({ postulacion });
+    } catch (error) {
+      return responderErrorGoogle(res, error);
+    }
+  });
+
+  api.delete("/admin/postulaciones/:id/entrevista", requiereSesion, requiereAdmin, async (req, res) => {
+    const id = idDe(req);
+    if (id === null) return res.status(400).json({ error: "Postulación no válida." });
+    const postulacion = datos().postulaciones.find((item) => item.id === id);
+    if (!postulacion) return res.status(404).json({ error: "La postulación no existe." });
+    if (postulacion.entrevista?.estado !== "Agendada") {
+      return res.status(409).json({ error: "No hay una entrevista agendada para cancelar." });
+    }
+
+    const token = tokenGoogleDe(req, res);
+    if (!token) return undefined;
+    try {
+      if (!await validarPropiedadDeEntrevista(res, postulacion, token)) return undefined;
+      await clienteGoogleCalendar.eliminarEvento(token, postulacion.entrevista.eventoId);
+      postulacion.entrevista = { ...postulacion.entrevista, estado: "Cancelada" };
+      almacen.guardar();
+      return res.json({ postulacion });
+    } catch (error) {
+      return responderErrorGoogle(res, error);
+    }
   });
 
   // ---------- Candidatos y solicitudes de evaluación ----------

@@ -441,3 +441,33 @@ export function actualizarEstadoPostulacion(datos, id, estado) {
   postulacion.estado = estado;
   return { ok: true, postulacion };
 }
+
+export function validarDatosEntrevista(entrada) {
+  const inicio = new Date(entrada?.inicio);
+  const duracionMinutos = Number(entrada?.duracionMinutos);
+  const zonaHoraria = texto(entrada?.zonaHoraria);
+
+  if (!Number.isFinite(inicio.getTime()) || !/[zZ]|[+-]\d{2}:\d{2}$/.test(String(entrada?.inicio ?? ""))) {
+    return error("La fecha y hora de la entrevista no son válidas.");
+  }
+  if (inicio <= new Date()) return error("La entrevista debe programarse para una fecha futura.");
+  if (!Number.isInteger(duracionMinutos) || duracionMinutos < 15 || duracionMinutos > 180) {
+    return error("La duración debe estar entre 15 y 180 minutos.");
+  }
+  if (!zonaHoraria || zonaHoraria.length > 80) return error("La zona horaria no es válida.");
+  try {
+    new Intl.DateTimeFormat("es-CL", { timeZone: zonaHoraria });
+  } catch {
+    return error("La zona horaria no es válida.");
+  }
+
+  return {
+    ok: true,
+    entrevista: {
+      inicio: inicio.toISOString(),
+      fin: new Date(inicio.getTime() + duracionMinutos * 60_000).toISOString(),
+      duracionMinutos,
+      zonaHoraria,
+    },
+  };
+}

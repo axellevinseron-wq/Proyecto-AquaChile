@@ -54,6 +54,7 @@ En el frontend, `src/api.js` hace las peticiones y `src/auth.js` mantiene una co
 | `POST /api/postulaciones` | público | Envía una postulación a una oferta vigente. |
 | `GET/POST /api/admin/ofertas` · `PATCH /api/admin/ofertas/:id` | admin | Consulta, crea y actualiza ofertas. |
 | `GET /api/admin/postulaciones` · `PATCH /api/admin/postulaciones/:id/estado` | admin | Revisa postulaciones y actualiza su estado. |
+| `POST/PATCH/DELETE /api/admin/postulaciones/:id/entrevista` | admin | Agenda, reprograma o cancela una entrevista de Google Calendar/Meet. |
 | `GET/PUT /api/colecciones/candidatos` y `/solicitudes` | sesión (PUT con permiso de la sección) | Lista de candidatos y de solicitudes de evaluación. |
 
 ## Portal de empleos
@@ -61,6 +62,8 @@ En el frontend, `src/api.js` hace las peticiones y `src/auth.js` mantiene una co
 - `/` muestra las ofertas públicas; `/empleos` es un alias y `/empleos/:id` presenta el detalle y el formulario de postulación.
 - `/acceso` es la entrada al sistema interno; el portal público enlaza allí como «Acceso equipo».
 - El panel interno tiene secciones de administración para ofertas y postulaciones, disponibles solo para administradores.
+- En «Postulaciones», al cambiar una postulación a «Entrevista», un administrador puede agendar, reprogramar o cancelar la cita en el calendario principal de su cuenta Google. El acceso OAuth se usa solo durante la operación; no se guarda el token.
+- Para habilitarlo, configura `VITE_GOOGLE_CLIENT_ID` en `.env` con un cliente OAuth de tipo aplicación web en Google Cloud. Habilita Google Calendar API y agrega los orígenes de desarrollo/producción como orígenes JavaScript autorizados. La autorización solicita correo e `calendar.events`.
 - Las cuentas nuevas se crean por invitación de un administrador. El enlace vence en 24 horas, es de un solo uso y permite que la persona defina su propia contraseña (mínimo 12 caracteres). Los tokens se guardan como hash.
 - Por defecto, las cuentas con rol «Usuario» reciben todos los permisos desactivados; el administrador selecciona los necesarios. Los administradores pueden invitar y revocar desde «Usuarios».
 - Si Resend no está configurado o falla el envío, el panel muestra el enlace para compartirlo directamente con la persona indicada. Configura `APP_BASE_URL` con la URL pública del frontend; para correo, define `RESEND_API_KEY` y un `RESEND_FROM` verificado en Resend.

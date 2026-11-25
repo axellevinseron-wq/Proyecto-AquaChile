@@ -2,12 +2,37 @@
 import { afterEach, beforeEach, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { crearApp } from "../app.js";
+import { crearClienteGoogleCalendar } from "../googleCalendar.js";
 
 let servidor;
 let url;
+let eventosGoogle;
 
 beforeEach(async () => {
-  servidor = crearApp({ clienteCorreo: null }).listen(0, "127.0.0.1");
+  eventosGoogle = [];
+  const clienteGoogleCalendar = {
+    async obtenerOrganizador(token) {
+      return token === "google-access-token-for-recruiter"
+        ? "reclutador@example.test"
+        : "otro@example.test";
+    },
+    async crearEvento(token, evento) {
+      eventosGoogle.push({ tipo: "crear", token, evento });
+      return {
+        id: evento.id,
+        htmlLink: "https://calendar.google.com/event",
+        hangoutLink: "https://meet.google.com/abc-defg-hij",
+      };
+    },
+    async actualizarEvento(token, id, cambios) {
+      eventosGoogle.push({ tipo: "actualizar", token, id, cambios });
+      return { htmlLink: "https://calendar.google.com/event" };
+    },
+    async eliminarEvento(token, id) {
+      eventosGoogle.push({ tipo: "eliminar", token, id });
+    },
+  };
+  servidor = crearApp({ clienteCorreo: null, clienteGoogleCalendar }).listen(0, "127.0.0.1");
   await new Promise((resolver) => servidor.once("listening", resolver));
   url = `http://127.0.0.1:${servidor.address().port}/api`;
 });
@@ -34,6 +59,31 @@ async function ingresar(usuario, clave) {
   const { datos } = await pedir("POST", "/sesion", { cuerpo: { usuario, clave } });
   return datos.token;
 }
+
+describe("Cliente de Google Calendar", () => {
+  it("usa el token solo como bearer y construye llamadas de Calendar", async () => {
+    const llamadas = [];
+    const cliente = crearClienteGoogleCalendar({
+      fetchImpl: async (url, opciones) => {
+        llamadas.push({ url, opciones });
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ email: "reclutador@example.test", email_verified: true, htmlLink: "https://calendar.google.com/event" }),
+        };
+      },
+    });
+
+    assert.equal(await cliente.obtenerOrganizador("token-de-prueba-solo-en-memoria"), "reclutador@example.test");
+    const evento = await cliente.crearEvento("token-de-prueba-solo-en-memoria", { id: "ab123", summary: "Entrevista" });
+
+    assert.equal(evento.htmlLink, "https://calendar.google.com/event");
+    assert.equal(llamadas[0].url, "https://www.googleapis.com/oauth2/v3/userinfo");
+    assert.equal(llamadas[1].url, "https://www.googleapis.com/calendar/v3/calendars/primary/events?conferenceDataVersion=1&sendUpdates=all");
+    assert.equal(llamadas[1].opciones.headers.Authorization, "Bearer token-de-prueba-solo-en-memoria");
+    assert.equal(llamadas[1].opciones.method, "POST");
+  });
+});
 
 describe("Sesión", () => {
   it("inicia sesión y devuelve token, rol y permisos", async () => {
@@ -192,6 +242,7 @@ describe("Ofertas y postulaciones", () => {
         mensaje: "Tengo experiencia en operaciones.",
       },
     });
+
     assert.equal(creada.status, 201);
     assert.equal(creada.datos.postulacion.estado, "Recibida");
     assert.equal((await pedir("POST", "/postulaciones", {
@@ -208,6 +259,79 @@ describe("Ofertas y postulaciones", () => {
     assert.equal(privadas.status, 200);
     assert.equal(privadas.datos.items[0].correo, "ana@example.test");
     assert.equal((await pedir("GET", "/admin/postulaciones", { token: await ingresar("psicologo", "psico123") })).status, 403);
+  });
+
+  it("agenda, reprograma y cancela una entrevista de Google solo con cuenta autorizada", async () => {
+    const oferta = (await pedir("GET", "/ofertas")).datos.items[0];
+    const creada = await pedir("POST", "/postulaciones", {
+      cuerpo: {
+        ofertaId: oferta.id,
+        nombre: "Ana Prueba",
+        correo: "ana@example.test",
+        telefono: "+56 9 1234 5678",
+      },
+    });
+    const postulacionId = creada.datos.postulacion.id;
+    const admin = await ingresar("admin", "admin123");
+    const solicitud = {
+      googleAccessToken: "google-access-token-for-recruiter",
+      inicio: "2099-12-01T14:00:00.000Z",
+      zonaHoraria: "America/Santiago",
+      duracionMinutos: 30,
+    };
+
+    assert.equal(
+      (await pedir("POST", `/admin/postulaciones/${postulacionId}/entrevista`, { cuerpo: solicitud })).status,
+      401,
+    );
+    assert.equal(
+      (await pedir("POST", `/admin/postulaciones/${postulacionId}/entrevista`, { token: admin, cuerpo: solicitud })).status,
+      409,
+    );
+    await pedir("PATCH", `/admin/postulaciones/${postulacionId}/estado`, {
+      token: admin,
+      cuerpo: { estado: "Entrevista" },
+    });
+    assert.equal(
+      (await pedir("POST", `/admin/postulaciones/${postulacionId}/entrevista`, {
+        token: admin,
+        cuerpo: { ...solicitud, zonaHoraria: "No/Zona" },
+      })).status,
+      400,
+    );
+
+    const agendada = await pedir("POST", `/admin/postulaciones/${postulacionId}/entrevista`, {
+      token: admin,
+      cuerpo: solicitud,
+    });
+    assert.equal(agendada.status, 201);
+    assert.equal(agendada.datos.postulacion.entrevista.estado, "Agendada");
+    assert.equal(agendada.datos.postulacion.entrevista.organizador, "reclutador@example.test");
+    assert.equal(agendada.datos.postulacion.entrevista.enlaceMeet, "https://meet.google.com/abc-defg-hij");
+    assert.equal(JSON.stringify(agendada.datos).includes("googleAccessToken"), false);
+    assert.equal(eventosGoogle[0].evento.attendees[0].email, "ana@example.test");
+
+    assert.equal(
+      (await pedir("PATCH", `/admin/postulaciones/${postulacionId}/entrevista`, {
+        token: admin,
+        cuerpo: { ...solicitud, googleAccessToken: "google-access-token-for-another-user" },
+      })).status,
+      403,
+    );
+    const reprogramada = await pedir("PATCH", `/admin/postulaciones/${postulacionId}/entrevista`, {
+      token: admin,
+      cuerpo: { ...solicitud, inicio: "2099-12-02T15:00:00.000Z" },
+    });
+    assert.equal(reprogramada.status, 200);
+    assert.equal(reprogramada.datos.postulacion.entrevista.inicio, "2099-12-02T15:00:00.000Z");
+
+    const cancelada = await pedir("DELETE", `/admin/postulaciones/${postulacionId}/entrevista`, {
+      token: admin,
+      cuerpo: { googleAccessToken: "google-access-token-for-recruiter" },
+    });
+    assert.equal(cancelada.status, 200);
+    assert.equal(cancelada.datos.postulacion.entrevista.estado, "Cancelada");
+    assert.deepEqual(eventosGoogle.map((evento) => evento.tipo), ["crear", "actualizar", "eliminar"]);
   });
 
   it("solo administradores crean ofertas y ofertas cerradas dejan de ser públicas", async () => {
